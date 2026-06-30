@@ -1,8 +1,8 @@
-# VidDict — 看视频学英语
+# Shadow Voice — 看视频学英语
 
-> **Video + Dictation**：通过真实英语视频 + 交互式听写，全面提升英语听力与拼写能力。
+> **Shadow Voice**：通过真实英语视频 + 交互式听写，全面提升英语听力与拼写能力。
 
-VidDict 是一个全栈英语学习应用，提供 **214 个真实英语视频**（涵盖 16 个话题、3 个难度级别），配合**双语字幕播放**与**逐句听写训练**两大学习模式，让用户在真实语境中学习英语。
+Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视频**（涵盖 16 个话题、3 个难度级别），配合**双语字幕播放**与**逐句听写训练**两大学习模式，让用户在真实语境中学习英语。
 
 ---
 
@@ -69,7 +69,7 @@ VidDict 是一个全栈英语学习应用，提供 **214 个真实英语视频**
 
 ```bash
 # 1. 进入项目目录
-cd vidDict
+cd shadow_voice
 
 # 2. 安装依赖
 npm install
@@ -108,7 +108,7 @@ npm run build
 ## 项目结构
 
 ```
-vidDict/
+shadow_voice/
 ├── data/                        # 视频数据（非代码）
 │   ├── consolidated.json        # 视频 + 字幕汇总（214 条）
 │   ├── meta.json                # 元数据（话题列表、级别、统计）
@@ -118,7 +118,7 @@ vidDict/
 │   ├── subtitles/               # 字幕 JSON 文件（每个视频一个）
 │   ├── thumbnails/              # 缩略图
 │   ├── videos/                  # 本地视频文件
-│   └── vidDict.db               # SQLite 数据库（用户、生词、听写记录）
+│   └── shadow_voice.db           # SQLite 数据库（用户、生词、听写记录）
 │
 ├── server/                      # 后端 API
 │   ├── index.cjs                # Express 入口（端口 3001）

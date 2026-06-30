@@ -6,11 +6,16 @@ const API_BASE = '/api'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('vidDict_token'))
+  const [token, setToken] = useState(() => localStorage.getItem('shadow_voice_token'))
+  const [isGuest, setIsGuest] = useState(() => sessionStorage.getItem('shadow_voice_guest') === 'true')
   const [loading, setLoading] = useState(true)
 
   // Verify token on mount
   useEffect(() => {
+    if (isGuest) {
+      setLoading(false)
+      return
+    }
     if (!token) {
       setLoading(false)
       return
@@ -22,12 +27,20 @@ export function AuthProvider({ children }) {
       .then(data => setUser(data.user))
       .catch(() => {
         setToken(null)
-        localStorage.removeItem('vidDict_token')
+        localStorage.removeItem('shadow_voice_token')
       })
       .finally(() => setLoading(false))
   }, [])
 
+  const loginAsGuest = () => {
+    setIsGuest(true)
+    sessionStorage.setItem('shadow_voice_guest', 'true')
+    setLoading(false)
+  }
+
   const login = async (username, password) => {
+    setIsGuest(false)
+    sessionStorage.removeItem('shadow_voice_guest')
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,11 +50,13 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error)
     setToken(data.token)
     setUser(data.user)
-    localStorage.setItem('vidDict_token', data.token)
+    localStorage.setItem('shadow_voice_token', data.token)
     return data.user
   }
 
   const register = async (username, email, password) => {
+    setIsGuest(false)
+    sessionStorage.removeItem('shadow_voice_guest')
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,17 +66,29 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error)
     setToken(data.token)
     setUser(data.user)
-    localStorage.setItem('vidDict_token', data.token)
+    localStorage.setItem('shadow_voice_token', data.token)
     return data.user
   }
 
   const logout = () => {
     setToken(null)
     setUser(null)
-    localStorage.removeItem('vidDict_token')
+    setIsGuest(false)
+    localStorage.removeItem('shadow_voice_token')
+    sessionStorage.removeItem('shadow_voice_guest')
   }
 
   const authFetch = (url, options = {}) => {
+    // Guest mode: skip auth, request will get 401 which callers handle
+    if (isGuest) {
+      return fetch(`${API_BASE}${url}`, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Content-Type': 'application/json'
+        }
+      })
+    }
     return fetch(`${API_BASE}${url}`, {
       ...options,
       headers: {
@@ -73,7 +100,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, authFetch }}>
+    <AuthContext.Provider value={{ user, token, isGuest, loading, login, loginAsGuest, register, logout, authFetch }}>
       {children}
     </AuthContext.Provider>
   )

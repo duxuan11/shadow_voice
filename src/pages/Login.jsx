@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { User } from 'lucide-react'
 
 export default function Login() {
-  const { login, register } = useAuth()
+  const { login, register, loginAsGuest } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [username, setUsername] = useState('')
@@ -29,6 +30,11 @@ export default function Login() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleGuestLogin = () => {
+    loginAsGuest()
+    navigate('/')
   }
 
   return (
@@ -97,6 +103,11 @@ export default function Login() {
           <button type="submit" className="login-submit" disabled={submitting}>
             {submitting ? '请稍候...' : mode === 'register' ? '注册' : '登录'}
           </button>
+
+          <button type="button" className="guest-login-btn" onClick={handleGuestLogin}>
+            <User size={16} />
+            <span>游客模式</span>
+          </button>
         </form>
 
         <p className="login-switch">
@@ -106,6 +117,7 @@ export default function Login() {
             <>已有账号？<button onClick={() => setMode('login')}>去登录</button></>
           )}
         </p>
+        <p className="guest-hint">游客模式：可以浏览内容和使用学习功能，但无法保存进度</p>
       </div>
     </div>
   )

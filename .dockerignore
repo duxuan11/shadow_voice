@@ -1,0 +1,15 @@
+node_modules
+data
+raw
+dist
+.git
+.gitignore
+*.md
+!README.md
+scripts
+public
+download_*.sh
+download_*.py
+fetch_*.sh
+.env
+.DS_Store

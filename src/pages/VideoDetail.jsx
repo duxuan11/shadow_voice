@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, 
-         BookOpen, FileText, Download, ChevronLeft, ChevronRight, Star, Pencil } from 'lucide-react'
+         BookOpen, FileText, Download, ChevronLeft, ChevronRight, Star, Pencil, Mic, PenLine } from 'lucide-react'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -58,7 +58,7 @@ export default function VideoDetail() {
   // Watched history
   const [watchedHistory, setWatchedHistory] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('vidDict_watched') || '[]')
+      return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]')
     } catch { return [] }
   })
 
@@ -74,7 +74,7 @@ export default function VideoDetail() {
           // Track as watched
           setWatchedHistory(prev => {
             const updated = [found.id, ...prev.filter(vid => vid !== found.id)].slice(0, 50)
-            localStorage.setItem('vidDict_watched', JSON.stringify(updated))
+            localStorage.setItem('shadow_voice_watched', JSON.stringify(updated))
             return updated
           })
         } else {
@@ -96,11 +96,15 @@ export default function VideoDetail() {
     )
     setActiveSubIndex(idx)
     
-    // Auto-scroll to active subtitle
+    // Auto-scroll to active subtitle within the panel (not the whole page)
     if (idx >= 0 && subtitleContainerRef.current) {
       const el = document.getElementById(`sub-${idx}`)
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const container = subtitleContainerRef.current
+        const containerRect = container.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const offset = elRect.top - containerRect.top + container.scrollTop - containerRect.height / 2 + elRect.height / 2
+        container.scrollTo({ top: offset, behavior: 'smooth' })
       }
     }
   }, [currentTime, video])
@@ -281,6 +285,14 @@ export default function VideoDetail() {
         </button>
         <h1 className="video-detail-title">{video.title}</h1>
         <div className="video-detail-actions">
+          <button onClick={() => navigate(`/video/${id}/shadowing`)} className="action-btn shadowing-btn-header">
+            <Mic size={18} />
+            <span>跟读</span>
+          </button>
+          <button onClick={() => navigate(`/video/${id}/cloze`)} className="action-btn cloze-btn-header">
+            <PenLine size={18} />
+            <span>填词</span>
+          </button>
           <button onClick={() => navigate(`/video/${id}/dictation`)} className="action-btn dictation-btn">
             <Pencil size={18} />
             <span>听写</span>

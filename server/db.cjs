@@ -2,7 +2,7 @@ const initSqlJs = require('sql.js')
 const fs = require('fs')
 const path = require('path')
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'vidDict.db')
+const DB_PATH = path.join(__dirname, '..', 'data', 'shadow_voice.db')
 
 let db = null
 
@@ -55,6 +55,11 @@ function initSchema() {
 // sql.js doesn't auto-save — call this after writes
 function saveDb() {
   if (!db) return
+  // Ensure the data directory exists
+  const dir = path.dirname(DB_PATH)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
   const data = db.export()
   const buffer = Buffer.from(data)
   fs.writeFileSync(DB_PATH, buffer)

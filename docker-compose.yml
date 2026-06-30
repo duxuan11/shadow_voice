@@ -1,0 +1,13 @@
+services:
+  shadow-voice:
+    build: .
+    container_name: shadow-voice
+    ports:
+      - "3001:3001"
+    volumes:
+      # All user data: videos, thumbnails, SQLite DB, JSON catalogs
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001

@@ -9,7 +9,7 @@ export default function LearningRecords() {
   const [videos, setVideos] = useState([])
   const [vocabulary, setVocabulary] = useState([])
   const [watchedHistory, setWatchedHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('vidDict_watched') || '[]') }
+    try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
     catch { return [] }
   })
   const [activeTab, setActiveTab] = useState('watched')
@@ -35,7 +35,7 @@ export default function LearningRecords() {
 
   const clearWatched = () => {
     setWatchedHistory([])
-    localStorage.setItem('vidDict_watched', '[]')
+    localStorage.setItem('shadow_voice_watched', '[]')
   }
 
   const clearVocabulary = () => {

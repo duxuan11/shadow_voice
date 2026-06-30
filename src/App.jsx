@@ -7,7 +7,7 @@ export default function App() {
   const [meta, setMeta] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
-  const { user, logout } = useAuth()
+  const { user, isGuest, logout } = useAuth()
 
   useEffect(() => {
     fetch('/data/meta.json')
@@ -49,6 +49,15 @@ export default function App() {
                 <User size={16} />
                 <span className="nav-username">{user.username}</span>
                 <button onClick={logout} className="nav-logout-btn" title="退出登录">
+                  <LogOut size={16} />
+                </button>
+              </div>
+            )}
+            {isGuest && !user && (
+              <div className="nav-user nav-guest">
+                <User size={16} />
+                <span className="nav-username">游客</span>
+                <button onClick={logout} className="nav-logout-btn" title="退出游客模式">
                   <LogOut size={16} />
                 </button>
               </div>

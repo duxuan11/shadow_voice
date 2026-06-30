@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const JWT_SECRET = process.env.JWT_SECRET || 'vidDict-dev-secret-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET || 'shadow-voice-dev-secret-change-in-production'
 const JWT_EXPIRES = '30d'
 
 function signToken(userId) {

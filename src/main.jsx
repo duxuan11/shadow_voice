@@ -6,13 +6,15 @@ import App from './App'
 import Library from './pages/Library'
 import VideoDetail from './pages/VideoDetail'
 import DictationPage from './pages/DictationPage'
+import ShadowingPage from './pages/ShadowingPage'
+import ClozePage from './pages/ClozePage'
 import LearningRecords from './pages/LearningRecords'
 import Login from './pages/Login'
 import './index.css'
 
-// Route guard: redirect to /login if not authenticated
+// Route guard: redirect to /login if not authenticated AND not guest
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, isGuest, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -24,7 +26,7 @@ function ProtectedRoute({ children }) {
     )
   }
 
-  if (!user) {
+  if (!user && !isGuest) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -41,6 +43,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route index element={<Library />} />
             <Route path="video/:id" element={<VideoDetail />} />
             <Route path="video/:id/dictation" element={<DictationPage />} />
+            <Route path="video/:id/shadowing" element={<ShadowingPage />} />
+            <Route path="video/:id/cloze" element={<ClozePage />} />
             <Route path="records" element={<LearningRecords />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
