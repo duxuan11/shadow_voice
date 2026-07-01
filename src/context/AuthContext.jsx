@@ -46,8 +46,13 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error)
+    let data
+    try {
+      data = await res.json()
+    } catch {
+      throw new Error('服务器未响应，请确认后端服务已启动 (npm run server)')
+    }
+    if (!res.ok) throw new Error(data.error || '登录失败')
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('shadow_voice_token', data.token)
@@ -62,8 +67,13 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password })
     })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error)
+    let data
+    try {
+      data = await res.json()
+    } catch {
+      throw new Error('服务器未响应，请确认后端服务已启动 (npm run server)')
+    }
+    if (!res.ok) throw new Error(data.error || '注册失败')
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('shadow_voice_token', data.token)

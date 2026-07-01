@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, EyeOff, ChevronLeft, ChevronRight, Volume2, Check, X as XIcon } from 'lucide-react'
+import { ArrowLeft, RotateCcw, EyeOff, Eye, ChevronLeft, ChevronRight, Volume2, Check, X as XIcon, Headphones } from 'lucide-react'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -302,9 +302,25 @@ export default function ClozePage() {
             {/* Submit / nav */}
             <div className="cloze-actions">
               {!submitted ? (
-                <button onClick={submitAnswers} className="cloze-submit-btn">
-                  检查答案 (Enter)
-                </button>
+                <div className="cloze-action-row">
+                  <button onClick={submitAnswers} className="cloze-submit-btn">
+                    检查答案 (Enter)
+                  </button>
+                  <div className="cloze-mini-actions">
+                    <button onClick={playAudio} className="dictation-action-btn replay-btn" title="重听 (Ctrl+R)">
+                      <Headphones size={16} />
+                      <span>重听</span>
+                    </button>
+                    <button
+                      onClick={() => setShowChinese(!showChinese)}
+                      className={`dictation-action-btn toggle-cn-btn ${showChinese ? 'active' : ''}`}
+                      title={showChinese ? '隐藏中文' : '显示中文'}
+                    >
+                      {showChinese ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <span>{showChinese ? '隐藏' : '中文'}</span>
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="cloze-result-summary">
                   <span className={`result-badge ${correctCount === blankCount ? 'all-correct' : ''}`}>

@@ -70,6 +70,26 @@ input { font: inherit; }
   padding: 4px 12px;
   border-radius: 12px;
 }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  padding: 4px 12px;
+  background: #f3f4f6;
+  border-radius: 20px;
+}
+.nav-logout-btn {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  color: #9ca3af;
+  transition: all 0.15s;
+}
+.nav-logout-btn:hover { background: #fee2e2; color: #ef4444; }
 
 /* ===== Main Content ===== */
 .main-content {
@@ -672,7 +692,28 @@ input { font: inherit; }
   font-weight: 500;
 }
 
-/* ===== Subtitle Mode Selector ===== */
+/* ===== Subtitle Tabs (segmented control in video overlay) ===== */
+.subtitle-tabs {
+  display: inline-flex;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.subtitle-tab {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  background: transparent;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.subtitle-tab:last-child { border-right: none; }
+.subtitle-tab:hover { background: rgba(255,255,255,0.1); color: white; }
+.subtitle-tab.active { background: rgba(37,99,235,0.6); color: white; }
+
+/* ===== Subtitle Mode Selector (for export panel) ===== */
 .subtitle-mode-selector {
   display: flex;
   align-items: center;
@@ -680,7 +721,6 @@ input { font: inherit; }
   font-size: 13px;
   color: #6b7280;
 }
-.subtitle-mode-selector.inline { gap: 2px; }
 .mode-btn {
   padding: 4px 12px;
   border-radius: 6px;
@@ -691,16 +731,6 @@ input { font: inherit; }
 }
 .mode-btn:hover { border-color: #2563eb; }
 .mode-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
-.mode-btn-mini {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.7);
-  transition: all 0.15s;
-}
-.mode-btn-mini:hover { color: white; background: rgba(255,255,255,0.1); }
-.mode-btn-mini.active { color: white; background: rgba(37,99,235,0.5); }
 
 /* ===== Vocabulary Panel ===== */
 .vocab-panel {
@@ -1086,6 +1116,58 @@ input { font: inherit; }
   padding: 2px 8px;
   border-radius: 4px;
   font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* ===== Dictation/Cloze Action Buttons (touch-friendly) ===== */
+.dictation-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.dictation-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dictation-action-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.dictation-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dictation-action-btn.submit-btn {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+.dictation-action-btn.submit-btn:hover:not(:disabled) { background: #1d4ed8; }
+.dictation-action-btn.skip-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+.dictation-action-btn.replay-btn:hover { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+.dictation-action-btn.toggle-cn-btn.active { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.dictation-action-btn.toggle-cn-btn:hover { background: #f8fafc; }
+
+.dictation-nav-center {
+  display: flex;
+  gap: 6px;
+}
+
+/* Cloze action row */
+.cloze-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cloze-mini-actions {
+  display: flex;
+  gap: 6px;
 }
 
 /* Review area */
@@ -1561,7 +1643,8 @@ input { font: inherit; }
   .nav-stats { display: none; }
   
   .video-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
   }
   
   .video-content { grid-template-columns: 1fr; }
@@ -1574,19 +1657,151 @@ input { font: inherit; }
   }
   
   .video-wrapper { aspect-ratio: auto; min-height: 220px; }
-  .overlay-english { font-size: 14px; }
+  .overlay-english { font-size: 14px; padding: 4px 12px; }
   .overlay-chinese { font-size: 12px; }
 
+  /* Video detail header: stack */
+  .video-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .video-detail-title {
+    font-size: 17px;
+    text-align: center;
+  }
+  .video-detail-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .video-detail-actions .action-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .back-btn {
+    align-self: flex-start;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  /* Export panel */
+  .export-panel {
+    padding: 12px;
+    gap: 8px;
+  }
+  .export-buttons { flex-direction: column; }
+  .export-btn { width: 100%; text-align: center; }
+
+  /* Controls: hide volume slider on mobile */
+  .volume-slider { display: none; }
+  .controls-left { gap: 4px; }
+  .controls-right { gap: 4px; }
+  .time-display { font-size: 10px; }
+  .ctrl-btn { padding: 2px; }
+  .play-btn { padding: 4px; }
+  .subtitle-tab { padding: 3px 6px; font-size: 10px; }
+
+  /* Info section */
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .info-card { padding: 14px; }
+
+  /* Dictation */
   .dictation-page { padding: 12px; }
   .dictation-card { padding: 16px 20px; }
   .dictation-input { font-size: 16px; padding: 12px 14px; }
   .dictation-stats { gap: 10px; }
   .dictation-stats .stat-item { font-size: 11px; }
-  .dictation-cheatsheet { gap: 6px; font-size: 10px; }
+  .dictation-input-hints,
+  .dictation-nav-hints,
+  .dictation-cheatsheet,
+  .kbd-hint { display: none; }
+  .dictation-action-btn { padding: 6px 10px; font-size: 12px; gap: 4px; }
+  .dictation-action-buttons { gap: 6px; }
+
+  /* Shadowing */
+  .shadowing-page { padding: 12px; }
+  .shadowing-card { padding: 16px 20px; }
+  .shadowing-english { font-size: 18px; }
+  .shadowing-text { padding: 14px; margin: 12px 0; }
+
+  /* Cloze */
+  .cloze-page { padding: 12px; }
+  .cloze-card { padding: 16px 20px; }
+  .cloze-text { font-size: 16px; padding: 14px; }
+
+  /* Exercise header */
+  .dictation-header { flex-wrap: wrap; gap: 8px; }
+  .dictation-title { font-size: 14px; }
+  .dictation-header-actions .action-btn-sm { padding: 4px 8px; font-size: 11px; }
 
   .nav-right { gap: 6px; }
   .nav-username { display: none; }
   .login-card { padding: 24px; }
+}
+
+@media (max-width: 480px) {
+  .main-content { padding: 12px 10px; }
+
+  .video-detail-title { font-size: 15px; }
+
+  .video-detail-actions .action-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .back-btn { padding: 5px 8px; font-size: 12px; }
+
+  /* Very compact subtitle tabs */
+  .subtitle-tab { padding: 2px 5px; font-size: 10px; }
+  .subtitle-tabs { border-radius: 4px; }
+
+  /* Even more compact controls */
+  .controls-row { padding: 0 4px; }
+  .video-controls { padding: 20px 6px 6px; }
+  .time-display { font-size: 9px; }
+
+  .video-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .video-card { border-radius: 10px; }
+
+  .subtitle-panel { max-height: 40vh; }
+  .subtitle-item { padding: 8px 10px; }
+  .sub-english { font-size: 13px; }
+  .sub-chinese { font-size: 12px; }
+
+  .info-card { padding: 10px; }
+  .info-card h3 { font-size: 14px; }
+  .info-description { font-size: 13px; }
+
+  .shadowing-english { font-size: 16px; }
+  .cloze-text { font-size: 15px; }
+  .dictation-card { padding: 14px 16px; }
+
+  /* Exercise pages: compact action buttons */
+  .dictation-action-btn { padding: 6px 8px; font-size: 11px; gap: 3px; }
+  .dictation-action-buttons { gap: 4px; }
+  .dictation-nav { gap: 4px; }
+  .dictation-nav .nav-btn { padding: 8px 10px; font-size: 13px; }
+  .dictation-nav-center { gap: 4px; }
+
+  .cloze-action-row { gap: 8px; }
+  .cloze-submit-btn { padding: 10px 24px; font-size: 14px; }
+  .spell-word { font-size: 15px; padding: 2px 6px; }
+  .spell-word.spell-skipped { font-size: 17px; }
+  .shadowing-card { padding: 14px 16px; }
+  .shadowing-audio-bar { gap: 8px; padding: 8px; }
+  .shadowing-btn { padding: 10px 16px; font-size: 13px; }
+
+  .dictation-finished { padding: 32px 14px; }
+  .dictation-finished h2 { font-size: 20px; }
+  .finished-stats { gap: 16px; }
+  .finished-icon { font-size: 48px; }
 }
 
 /* ===== Guest Mode ===== */

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, EyeOff, ChevronLeft, ChevronRight, Volume2 } from 'lucide-react'
+import { ArrowLeft, RotateCcw, EyeOff, Eye, ChevronLeft, ChevronRight, Volume2, Send, SkipForward, Headphones } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 function formatTime(seconds) {
@@ -494,6 +494,41 @@ export default function DictationPage() {
                   autoCorrect="off"
                   autoCapitalize="off"
                 />
+                <div className="dictation-action-buttons">
+                  <button
+                    onClick={submitAnswer}
+                    disabled={!userInput.trim()}
+                    className="dictation-action-btn submit-btn"
+                    title="提交 (Enter)"
+                  >
+                    <Send size={16} />
+                    <span>提交</span>
+                  </button>
+                  <button
+                    onClick={skipSentence}
+                    className="dictation-action-btn skip-btn"
+                    title="跳过 (Ctrl+Enter)"
+                  >
+                    <SkipForward size={16} />
+                    <span>跳过</span>
+                  </button>
+                  <button
+                    onClick={replayAudio}
+                    className="dictation-action-btn replay-btn"
+                    title="重听 (Ctrl+R)"
+                  >
+                    <Headphones size={16} />
+                    <span>重听</span>
+                  </button>
+                  <button
+                    onClick={() => setShowChinese(!showChinese)}
+                    className={`dictation-action-btn toggle-cn-btn ${showChinese ? 'active' : ''}`}
+                    title={showChinese ? '隐藏中文 (Ctrl+H)' : '显示中文 (Ctrl+H)'}
+                  >
+                    {showChinese ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <span>{showChinese ? '隐藏' : '中文'}</span>
+                  </button>
+                </div>
                 <div className="dictation-input-hints">
                   <span className="input-hint">Enter 提交</span>
                   <span className="input-hint">Ctrl+Enter 跳过</span>
@@ -562,6 +597,20 @@ export default function DictationPage() {
                     <ChevronLeft size={18} />
                     <span>上一句</span>
                   </button>
+                  <div className="dictation-nav-center">
+                    <button onClick={replayAudio} className="dictation-action-btn replay-btn" title="重听 (Ctrl+R)">
+                      <Headphones size={16} />
+                      <span>重听</span>
+                    </button>
+                    <button
+                      onClick={() => setShowChinese(!showChinese)}
+                      className={`dictation-action-btn toggle-cn-btn ${showChinese ? 'active' : ''}`}
+                      title={showChinese ? '隐藏中文' : '显示中文'}
+                    >
+                      {showChinese ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <span>{showChinese ? '隐藏' : '中文'}</span>
+                    </button>
+                  </div>
                   <button onClick={goNext} className="nav-btn nav-btn-primary">
                     <span>{currentIndex < subtitles.length - 1 ? '下一句' : '完成'}</span>
                     <ChevronRight size={18} />
@@ -571,7 +620,6 @@ export default function DictationPage() {
                 <div className="dictation-nav-hints">
                   <span className="input-hint">Enter/Space 下一句</span>
                   <span className="input-hint">← 上一句</span>
-                  <span className="input-hint">Ctrl+R 重听</span>
                 </div>
               </div>
             )}

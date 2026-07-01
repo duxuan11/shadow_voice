@@ -313,7 +313,7 @@ export default function ShadowingPage() {
               {recordingState === 'idle' && (
                 <button onClick={startRecording} className="shadowing-btn shadowing-record-btn">
                   <Mic size={20} />
-                  <span>开始跟读 (Space)</span>
+                  <span>开始跟读 <span className="kbd-hint">(Space)</span></span>
                 </button>
               )}
 
@@ -325,7 +325,7 @@ export default function ShadowingPage() {
                   </div>
                   <button onClick={stopRecording} className="shadowing-btn shadowing-stop-btn">
                     <Square size={18} />
-                    <span>停止录音 (Space)</span>
+                    <span>停止录音 <span className="kbd-hint">(Space)</span></span>
                   </button>
                 </div>
               )}

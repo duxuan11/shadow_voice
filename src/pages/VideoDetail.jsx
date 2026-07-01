@@ -380,9 +380,9 @@ export default function VideoDetail() {
                   <span className="time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
                 </div>
                 <div className="controls-right">
-                  <div className="subtitle-mode-selector inline">
+                  <div className="subtitle-tabs">
                     {['bilingual', 'english', 'chinese', 'hidden'].map(mode => (
-                      <button key={mode} className={`mode-btn-mini ${subtitleMode === mode ? 'active' : ''}`} onClick={() => setSubtitleMode(mode)}>
+                      <button key={mode} className={`subtitle-tab ${subtitleMode === mode ? 'active' : ''}`} onClick={() => setSubtitleMode(mode)}>
                         {mode === 'bilingual' ? '双语' : mode === 'english' ? 'EN' : mode === 'chinese' ? '中' : '关'}
                       </button>
                     ))}
