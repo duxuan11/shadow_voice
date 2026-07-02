@@ -61,4 +61,37 @@ router.get('/me', authMiddleware, async (req, res) => {
   res.json({ user })
 })
 
+// GET /api/auth/stats — learning statistics for profile page
+router.get('/stats', authMiddleware, async (req, res) => {
+  await getDb()
+  const dictationCount = get(
+    'SELECT COUNT(*) as count FROM dictation_records WHERE user_id = ?',
+    [req.userId]
+  )
+  const vocabCount = get(
+    'SELECT COUNT(*) as count FROM vocabulary WHERE user_id = ?',
+    [req.userId]
+  )
+  // Get average dictation score from stored data
+  const dictationRecords = all(
+    'SELECT data FROM dictation_records WHERE user_id = ?',
+    [req.userId]
+  )
+  let totalScore = 0
+  let scoredCount = 0
+  for (const r of dictationRecords) {
+    try {
+      const d = JSON.parse(r.data)
+      if (d.score != null) { totalScore += d.score; scoredCount++ }
+    } catch {}
+  }
+  const avgScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 0
+
+  res.json({
+    totalDictations: dictationCount?.count || 0,
+    totalVocabulary: vocabCount?.count || 0,
+    averageScore: avgScore,
+  })
+})
+
 module.exports = router

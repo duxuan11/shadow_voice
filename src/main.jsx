@@ -9,6 +9,7 @@ import DictationPage from './pages/DictationPage'
 import ShadowingPage from './pages/ShadowingPage'
 import ClozePage from './pages/ClozePage'
 import LearningRecords from './pages/LearningRecords'
+import Profile from './pages/Profile'
 import Login from './pages/Login'
 import './index.css'
 
@@ -46,6 +47,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="video/:id/shadowing" element={<ShadowingPage />} />
             <Route path="video/:id/cloze" element={<ClozePage />} />
             <Route path="records" element={<LearningRecords />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

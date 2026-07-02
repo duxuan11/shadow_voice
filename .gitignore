@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 data/*
 !data/.gitkeep
+data1

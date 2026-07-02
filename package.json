@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "server": "node server/index.cjs",
-    "build": "vite build && mkdir -p dist/data && cp data/*.json dist/data/ 2>/dev/null; cp -r data/thumbnails dist/data/ 2>/dev/null; echo 'Build complete with data files'",
+    "build": "vite build && mkdir -p dist/data && cp data/consolidated.json data/meta.json dist/data/ 2>/dev/null; echo 'Build complete with data files'",
     "lint": "eslint .",
     "preview": "vite preview"
   },

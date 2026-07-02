@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Home, BookOpen, Menu, X, LogOut, User } from 'lucide-react'
+import { Home, BookOpen, Menu, X, LogOut, User, UserCircle } from 'lucide-react'
 import { useAuth } from './context/AuthContext'
 
 export default function App() {
@@ -37,6 +37,10 @@ export default function App() {
             <NavLink to="/records" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMenuOpen(false)}>
               <BookOpen size={18} />
               <span>学习记录</span>
+            </NavLink>
+            <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMenuOpen(false)}>
+              <UserCircle size={18} />
+              <span>个人中心</span>
             </NavLink>
           </div>
 
