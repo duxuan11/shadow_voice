@@ -56,7 +56,7 @@ export default function ClozePage() {
       .then(videos => {
         const found = videos.find(v => v.id === id)
         if (!found) { setError('视频未找到'); setLoading(false); return }
-        const subs = (found.subtitles || []).filter(s => s.english_text && s.english_text.trim())
+        const subs = (found.subtitles || []).filter(s => s.textEn && s.textEn.trim())
         if (subs.length === 0) { setError('该视频没有可用的英文字幕'); setLoading(false); return }
         setVideo(found)
         setSubtitles(subs)
@@ -70,7 +70,7 @@ export default function ClozePage() {
     if (subtitles.length === 0 || finished) return
     const sub = subtitles[currentIndex]
     if (!sub) return
-    const items = generateCloze(sub.english_text, difficulty)
+    const items = generateCloze(sub.textEn, difficulty)
     setClozeItems(items)
     setUserAnswers({})
     setSubmitted(false)
@@ -81,7 +81,7 @@ export default function ClozePage() {
     const audio = audioRef.current
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
-    audio.currentTime = sub.start_time
+    audio.currentTime = sub.startTime
     audio.play().then(() => setIsPlaying(true)).catch(() => {})
   }
 
@@ -89,7 +89,7 @@ export default function ClozePage() {
     const audio = audioRef.current
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
-    if (audio.currentTime >= sub.end_time) {
+    if (audio.currentTime >= sub.endTime) {
       audio.pause()
       setIsPlaying(false)
     }
@@ -243,7 +243,7 @@ export default function ClozePage() {
             {/* Chinese hint */}
             <div className={`dictation-hint ${showChinese ? 'visible' : 'hidden'}`}>
               {showChinese ? (
-                <p className="dictation-chinese">{currentSub?.chinese_text}</p>
+                <p className="dictation-chinese">{currentSub?.textCn}</p>
               ) : (
                 <p className="dictation-chinese-placeholder">
                   <EyeOff size={14} /><span>中文已隐藏 (Ctrl+H 显示)</span>
@@ -258,7 +258,7 @@ export default function ClozePage() {
                 <span>{isPlaying ? '播放中...' : '听原声'}</span>
               </button>
               <span className="dictation-time">
-                {currentSub ? formatTime(currentSub.start_time) : ''} - {currentSub ? formatTime(currentSub.end_time) : ''}
+                {currentSub ? formatTime(currentSub.startTime) : ''} - {currentSub ? formatTime(currentSub.endTime) : ''}
               </span>
             </div>
 
@@ -354,7 +354,7 @@ export default function ClozePage() {
                     setUserAnswers({})
                     setSubmitted(false)
                   }}
-                  title={`第 ${idx + 1} 句: ${sub.english_text?.substring(0, 40)}...`}
+                  title={`第 ${idx + 1} 句: ${sub.textEn?.substring(0, 40)}...`}
                 />
               )
             })}

@@ -9,6 +9,7 @@ export default function Library() {
   const [search, setSearch] = useState('')
   const [levelFilter, setLevelFilter] = useState('全部')
   const [topicFilter, setTopicFilter] = useState('全部')
+  const [accentFilter, setAccentFilter] = useState('全部')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
   const navigate = useNavigate()
@@ -48,9 +49,13 @@ export default function Library() {
     if (topicFilter !== '全部') {
       result = result.filter(v => v.topics.includes(topicFilter))
     }
+
+    if (accentFilter !== '全部') {
+      result = result.filter(v => v.accent === accentFilter)
+    }
     
     return result
-  }, [videos, search, levelFilter, topicFilter])
+  }, [videos, search, levelFilter, topicFilter, accentFilter])
 
   const totalPages = Math.ceil(filteredVideos.length / PER_PAGE)
   const paginatedVideos = filteredVideos.slice((page - 1) * PER_PAGE, page * PER_PAGE)
@@ -126,15 +131,34 @@ export default function Library() {
               ))}
             </div>
           </div>
+          {meta.accents && meta.accents.length > 0 && (
+            <div className="filter-group">
+              <label className="filter-label">口音地区</label>
+              <div className="filter-options">
+                <button
+                  className={`filter-btn ${accentFilter === '全部' ? 'active' : ''}`}
+                  onClick={() => { setAccentFilter('全部'); setPage(1) }}
+                >全部</button>
+                {meta.accents.map(a => (
+                  <button
+                    key={a}
+                    className={`filter-btn ${accentFilter === a ? 'active' : ''}`}
+                    onClick={() => { setAccentFilter(a); setPage(1) }}
+                  >{a}</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       <div className="results-info">
         <span>共 {filteredVideos.length} 个视频</span>
-        {(levelFilter !== '全部' || topicFilter !== '全部') && (
+        {(levelFilter !== '全部' || topicFilter !== '全部' || accentFilter !== '全部') && (
           <span className="active-filters">
             {levelFilter !== '全部' && <span className="filter-tag" onClick={() => setLevelFilter('全部')}>{levelFilter} ×</span>}
             {topicFilter !== '全部' && <span className="filter-tag" onClick={() => setTopicFilter('全部')}>{topicFilter} ×</span>}
+            {accentFilter !== '全部' && <span className="filter-tag" onClick={() => setAccentFilter('全部')}>{accentFilter} ×</span>}
           </span>
         )}
       </div>
@@ -165,6 +189,7 @@ export default function Library() {
                 <span className="topic-badge">{video.topic}</span>
                 <span className="subtitle-count">{video.subtitle_count} 条字幕</span>
               </div>
+              {video.accent && <span className="video-accent">{video.accent}</span>}
             </div>
           </div>
         ))}
@@ -195,7 +220,7 @@ export default function Library() {
       {filteredVideos.length === 0 && (
         <div className="empty-state">
           <p>没有找到匹配的视频</p>
-          <button onClick={() => { setSearch(''); setLevelFilter('全部'); setTopicFilter('全部'); }}>清除筛选</button>
+          <button onClick={() => { setSearch(''); setLevelFilter('全部'); setTopicFilter('全部'); setAccentFilter('全部'); }}>清除筛选</button>
         </div>
       )}
     </div>

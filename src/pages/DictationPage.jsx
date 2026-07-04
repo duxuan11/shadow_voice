@@ -87,7 +87,7 @@ export default function DictationPage() {
         }
         // Filter to subtitles with english text
         const subs = (found.subtitles || []).filter(
-          s => s.english_text && s.english_text.trim()
+          s => s.textEn && s.textEn.trim()
         )
         if (subs.length === 0) {
           setError('该视频没有可用的英文字幕')
@@ -142,7 +142,7 @@ export default function DictationPage() {
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
 
-    audio.currentTime = sub.start_time
+    audio.currentTime = sub.startTime
     audio.play().then(() => {
       setIsPlaying(true)
       setGamePhase('typing')
@@ -165,13 +165,13 @@ export default function DictationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, loading, subtitles.length])
 
-  // Pause audio when end_time reached
+  // Pause audio when endTime reached
   const handleTimeUpdate = () => {
     const audio = audioRef.current
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
 
-    if (audio.currentTime >= sub.end_time) {
+    if (audio.currentTime >= sub.endTime) {
       audio.pause()
       setIsPlaying(false)
     }
@@ -187,7 +187,7 @@ export default function DictationPage() {
     const sub = subtitles[currentIndex]
     if (!sub) return
 
-    const results = checkSpelling(trimmed, sub.english_text)
+    const results = checkSpelling(trimmed, sub.textEn)
     const correct = isAllCorrect(results)
 
     setSpellResults(results)
@@ -236,7 +236,7 @@ export default function DictationPage() {
     if (!sub) return
 
     setSpellResults([
-      { type: 'correct', word: sub.english_text }
+      { type: 'correct', word: sub.textEn }
     ])
     setGamePhase('review')
 
@@ -245,7 +245,7 @@ export default function DictationPage() {
       return [...filtered, {
         index: currentIndex,
         userAnswer: '',
-        results: [{ type: 'correct', word: sub.english_text }],
+        results: [{ type: 'correct', word: sub.textEn }],
         correct: false, // skipped = not correct
         skipped: true,
         timestamp: new Date().toISOString()
@@ -458,7 +458,7 @@ export default function DictationPage() {
             {/* Chinese hint */}
             <div className={`dictation-hint ${showChinese ? 'visible' : 'hidden'}`}>
               {showChinese ? (
-                <p className="dictation-chinese">{currentSub?.chinese_text}</p>
+                <p className="dictation-chinese">{currentSub?.textCn}</p>
               ) : (
                 <p className="dictation-chinese-placeholder">
                   <EyeOff size={14} />
@@ -474,7 +474,7 @@ export default function DictationPage() {
                 <span>{isPlaying ? '播放中...' : '重播'}</span>
               </button>
               <span className="dictation-time">
-                {currentSub ? formatTime(currentSub.start_time) : ''} - {currentSub ? formatTime(currentSub.end_time) : ''}
+                {currentSub ? formatTime(currentSub.startTime) : ''} - {currentSub ? formatTime(currentSub.endTime) : ''}
               </span>
             </div>
 
@@ -553,7 +553,7 @@ export default function DictationPage() {
                       )
                     }
                     if (r.type === 'correct') {
-                      if (spellResults.length === 1 && r.word === currentSub?.english_text) {
+                      if (spellResults.length === 1 && r.word === currentSub?.textEn) {
                         // Single-word match is a special case for skipped — but we handle that above
                         return <span key={i} className="spell-word spell-right">{r.word}</span>
                       }
@@ -588,7 +588,7 @@ export default function DictationPage() {
                 {/* Sentence correct answer */}
                 <div className="spell-answer">
                   <span className="answer-label">正确句子：</span>
-                  <span className="answer-text">{currentSub?.english_text}</span>
+                  <span className="answer-text">{currentSub?.textEn}</span>
                 </div>
 
                 {/* Navigation */}
@@ -645,7 +645,7 @@ export default function DictationPage() {
                     setSpellResults(null)
                     setGamePhase('typing')
                   }}
-                  title={`第 ${idx + 1} 句: ${sub.english_text?.substring(0, 40)}...`}
+                  title={`第 ${idx + 1} 句: ${sub.textEn?.substring(0, 40)}...`}
                 />
               )
             })}

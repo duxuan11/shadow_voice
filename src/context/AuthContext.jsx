@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
 const AuthContext = createContext(null)
 
@@ -88,8 +88,7 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem('shadow_voice_guest')
   }
 
-  const authFetch = (url, options = {}) => {
-    // Guest mode: skip auth, request will get 401 which callers handle
+  const authFetch = useCallback((url, options = {}) => {
     if (isGuest) {
       return fetch(`${API_BASE}${url}`, {
         ...options,
@@ -107,7 +106,7 @@ export function AuthProvider({ children }) {
         'Content-Type': 'application/json'
       }
     })
-  }
+  }, [isGuest, token])
 
   return (
     <AuthContext.Provider value={{ user, token, isGuest, loading, login, loginAsGuest, register, logout, authFetch }}>

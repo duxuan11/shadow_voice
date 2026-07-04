@@ -3,6 +3,9 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 COPY package*.json ./
+
+# 新增：切换淘宝npm源
+RUN npm config set registry https://registry.npmmirror.com
 RUN npm ci
 
 COPY . .

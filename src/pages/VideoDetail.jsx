@@ -61,6 +61,12 @@ export default function VideoDetail() {
   const [abLoopB, setAbLoopB] = useState(null)
   const [sentenceGap, setSentenceGap] = useState(0)
   const [autoPauseSentence, setAutoPauseSentence] = useState(false)
+  const [subtitleFontSize, setSubtitleFontSize] = useState(() => {
+    try { return parseInt(localStorage.getItem('shadow_voice_fontsize') || '16') }
+    catch { return 16 }
+  })
+  const [showMobileMore, setShowMobileMore] = useState(false)
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
 
   // ── Learning mode ──
   const [learningMode, setLearningMode] = useState('normal')
@@ -82,12 +88,8 @@ export default function VideoDetail() {
   })
 
   useEffect(() => {
-    Promise.all([
-      fetch('/data/consolidated.json').then(r => r.json()),
-      authFetch('/vocab').then(r => r.json()).catch(() => ({ vocabulary: [] })),
-    ]).then(([videos, vocabData]) => {
+    fetch('/data/consolidated.json').then(r => r.json()).then(videos => {
       setAllVideos(videos)
-      setVocabulary(vocabData.vocabulary || [])
       const found = videos.find(v => v.id === id)
       if (found) {
         setVideo(found)
@@ -99,31 +101,35 @@ export default function VideoDetail() {
       } else { setError('视频未找到') }
       setLoading(false)
     }).catch(() => { setError('加载失败'); setLoading(false) })
+  }, [id])
+
+  useEffect(() => {
+    authFetch('/vocab').then(r => r.json()).then(d => setVocabulary(d.vocabulary || [])).catch(() => {})
   }, [id, authFetch])
 
   const derivedData = useMemo(() => {
     if (!video || !video.subtitles) return { keywords: [], phrases: [], expressions: [] }
     const keywordMap = new Map(); const phrases = []; const expressions = []
     for (const sub of video.subtitles) {
-      if (sub.keywords) {
-        for (const kw of sub.keywords) {
-          if (!keywordMap.has(kw)) keywordMap.set(kw, { word: kw, count: 1, times: [sub.start_time] })
-          else { const e = keywordMap.get(kw); e.count++; e.times.push(sub.start_time) }
+      if (sub.highlightWords) {
+        for (const kw of sub.highlightWords) {
+          if (!keywordMap.has(kw)) keywordMap.set(kw, { word: kw, count: 1, times: [sub.startTime] })
+          else { const e = keywordMap.get(kw); e.count++; e.times.push(sub.startTime) }
         }
       }
-      if (sub.keywords && sub.keywords.length >= 3) phrases.push(sub)
+      if (sub.highlightWords && sub.highlightWords.length >= 3) phrases.push(sub)
       if (sub.annotations && Object.keys(sub.annotations).length > 0) expressions.push(sub)
     }
     return {
       keywords: [...keywordMap.values()].sort((a, b) => b.count - a.count),
-      phrases: phrases.length > 0 ? phrases : video.subtitles.filter(s => s.keywords && s.keywords.length >= 2).slice(0, 20),
-      expressions: expressions.length > 0 ? expressions : video.subtitles.filter(s => s.english_text.length > 40).slice(0, 20),
+      phrases: phrases.length > 0 ? phrases : video.subtitles.filter(s => s.highlightWords && s.highlightWords.length >= 2).slice(0, 20),
+      expressions: expressions.length > 0 ? expressions : video.subtitles.filter(s => s.textEn.length > 40).slice(0, 20),
     }
   }, [video])
 
   useEffect(() => {
     if (!video || !video.subtitles) return
-    const idx = video.subtitles.findIndex(s => currentTime >= s.start_time && currentTime <= s.end_time)
+    const idx = video.subtitles.findIndex(s => currentTime >= s.startTime && currentTime <= s.endTime)
     setActiveSubIndex(idx)
     if (idx >= 0 && subtitleContainerRef.current) {
       const el = document.getElementById(`sub-${idx}`)
@@ -139,7 +145,7 @@ export default function VideoDetail() {
   useEffect(() => {
     if (loopMode !== 'sentence' || !video || activeSubIndex < 0) return
     const sub = video.subtitles[activeSubIndex]
-    if (sub) { setLoopStart(sub.start_time); setLoopEnd(sub.end_time) }
+    if (sub) { setLoopStart(sub.startTime); setLoopEnd(sub.endTime) }
   }, [activeSubIndex, loopMode, video])
 
   const handleTimeUpdate = () => {
@@ -159,10 +165,15 @@ export default function VideoDetail() {
   const goToNextVideo = () => { if (!allVideos.length) return; const i = allVideos.findIndex(v=>v.id===id); if (i>=0&&i<allVideos.length-1) navigate(`/video/${allVideos[i+1].id}`) }
   const handleVideoEnded = () => { setPlaying(false); if (loopMode==='all'&&videoRef.current) videoRef.current.play(); else goToNextVideo() }
   const skipTime = (s) => { if (videoRef.current) videoRef.current.currentTime = Math.max(0,Math.min(duration,videoRef.current.currentTime+s)) }
-  const goPrevSentence = () => { if (!video?.subtitles) return; const idx = activeSubIndex>0?activeSubIndex-1:0; jumpToSubtitle(video.subtitles[idx].start_time) }
-  const goNextSentence = () => { if (!video?.subtitles) return; const idx = activeSubIndex<video.subtitles.length-1?activeSubIndex+1:activeSubIndex; jumpToSubtitle(video.subtitles[idx].start_time) }
-  const replaySentence = () => { if (activeSubIndex>=0&&video?.subtitles) jumpToSubtitle(video.subtitles[activeSubIndex].start_time); else if (videoRef.current) { videoRef.current.currentTime=0; videoRef.current.play(); setPlaying(true) } }
+  const goPrevSentence = () => { if (!video?.subtitles) return; const idx = activeSubIndex>0?activeSubIndex-1:0; jumpToSubtitle(video.subtitles[idx].startTime) }
+  const goNextSentence = () => { if (!video?.subtitles) return; const idx = activeSubIndex<video.subtitles.length-1?activeSubIndex+1:activeSubIndex; jumpToSubtitle(video.subtitles[idx].startTime) }
+  const replaySentence = () => { if (activeSubIndex>=0&&video?.subtitles) jumpToSubtitle(video.subtitles[activeSubIndex].startTime); else if (videoRef.current) { videoRef.current.currentTime=0; videoRef.current.play(); setPlaying(true) } }
   const setABPoint = (pt) => { if (pt==='A'){setAbLoopA(currentTime);setAbLoopB(null)}else{if(abLoopA!==null&&currentTime>abLoopA)setAbLoopB(currentTime)} }
+  const cycleABLoop = () => {
+    if (abLoopA === null) { setAbLoopA(currentTime) }
+    else if (abLoopB === null) { if (currentTime > abLoopA) setAbLoopB(currentTime) }
+    else { clearABLoop() }
+  }
   const clearABLoop = () => { setAbLoopA(null);setAbLoopB(null);if(videoRef.current)videoRef.current.loop=loopMode==='all';setLoopStart(null);setLoopEnd(null) }
   useEffect(() => { if (abLoopA!==null&&abLoopB!==null&&videoRef.current&&videoRef.current.currentTime>=abLoopB) videoRef.current.currentTime=abLoopA }, [currentTime,abLoopA,abLoopB])
   const [lastSubIdx, setLastSubIdx] = useState(-1)
@@ -176,8 +187,8 @@ export default function VideoDetail() {
     authFetch('/vocab',{method:'POST',body:JSON.stringify({word:cw,videoId:id,videoTitle:video?.title})}).then(r=>r.json()).then(d=>{if(d.ok)authFetch('/vocab').then(r=>r.json()).then(d=>setVocabulary(d.vocabulary||[])).catch(()=>{})}).catch(()=>{})
   }
 
-  const exportWordDoc = () => { if(!video)return; const c=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${video.title}</title><style>body{font-family:"Microsoft YaHei",sans-serif;font-size:14pt;line-height:1.8;margin:40px;color:#333}h1{font-size:18pt;font-weight:bold;text-align:center;margin-bottom:10px}.info{text-align:center;color:#666;font-size:11pt;margin-bottom:30px;border-bottom:2px solid #e5e5e5;padding-bottom:20px}.time{color:#999;font-size:10pt}.english{font-size:14pt;color:#1a1a1a;margin:4px 0}.chinese{font-size:13pt;color:#666;margin:4px 0 16px 0}hr{border:none;border-top:1px solid #e5e5e5;margin:16px 0}</style></head><body><h1>${video.title} - 学习笔记</h1><div class="info">共 ${video.subtitles.length} 条字幕</div>${video.subtitles.map(s=>`${subtitleMode!=='chinese'?`<p class="english">${s.english_text}</p>`:''}${subtitleMode!=='english'?`<p class="chinese">${s.chinese_text}</p>`:''}<p class="time">${formatTime(s.start_time)}</p><hr/>`).join('')}</body></html>`; const b=new Blob([c],{type:'application/msword'}); const u=URL.createObjectURL(b); const a=document.createElement('a');a.href=u;a.download=`${video.title} - 学习笔记.doc`;a.click();URL.revokeObjectURL(u) }
-  const exportTxt = () => { if (!video) return; let t=`${video.title} - 学习笔记\n${'='.repeat(40)}\n\n`; video.subtitles.forEach(s=>{t+=`[${formatTime(s.start_time)}]\n`; if(subtitleMode!=='chinese')t+=`${s.english_text}\n`; if(subtitleMode!=='english')t+=`${s.chinese_text}\n`; t+='\n'}); const b=new Blob([t],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a');a.href=u;a.download=`${video.title} - 字幕.txt`;a.click();URL.revokeObjectURL(u) }
+  const exportWordDoc = () => { if(!video)return; const c=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${video.title}</title><style>body{font-family:"Microsoft YaHei",sans-serif;font-size:14pt;line-height:1.8;margin:40px;color:#333}h1{font-size:18pt;font-weight:bold;text-align:center;margin-bottom:10px}.info{text-align:center;color:#666;font-size:11pt;margin-bottom:30px;border-bottom:2px solid #e5e5e5;padding-bottom:20px}.time{color:#999;font-size:10pt}.english{font-size:14pt;color:#1a1a1a;margin:4px 0}.chinese{font-size:13pt;color:#666;margin:4px 0 16px 0}hr{border:none;border-top:1px solid #e5e5e5;margin:16px 0}</style></head><body><h1>${video.title} - 学习笔记</h1><div class="info">共 ${video.subtitles.length} 条字幕</div>${video.subtitles.map(s=>`${subtitleMode!=='chinese'?`<p class="english">${s.textEn}</p>`:''}${subtitleMode!=='english'?`<p class="chinese">${s.textCn}</p>`:''}<p class="time">${formatTime(s.startTime)}</p><hr/>`).join('')}</body></html>`; const b=new Blob([c],{type:'application/msword'}); const u=URL.createObjectURL(b); const a=document.createElement('a');a.href=u;a.download=`${video.title} - 学习笔记.doc`;a.click();URL.revokeObjectURL(u) }
+  const exportTxt = () => { if (!video) return; let t=`${video.title} - 学习笔记\n${'='.repeat(40)}\n\n`; video.subtitles.forEach(s=>{t+=`[${formatTime(s.startTime)}]\n`; if(subtitleMode!=='chinese')t+=`${s.textEn}\n`; if(subtitleMode!=='english')t+=`${s.textCn}\n`; t+='\n'}); const b=new Blob([t],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a');a.href=u;a.download=`${video.title} - 字幕.txt`;a.click();URL.revokeObjectURL(u) }
 
   // Shadowing
   const startRecording = async () => { try { const s=await navigator.mediaDevices.getUserMedia({audio:true}); const r=new MediaRecorder(s); const ch=[]; r.ondataavailable=e=>ch.push(e.data); r.onstop=()=>{ const b=new Blob(ch,{type:'audio/webm'}); setRecordedAudio(URL.createObjectURL(b)); s.getTracks().forEach(t=>t.stop()) }; mediaRecorderRef.current=r; r.start(); setRecording(true); setRecordedAudio(null) } catch {} }
@@ -185,7 +196,7 @@ export default function VideoDetail() {
 
   // Cloze
   const generateCloze = (txt, diff) => { const w=txt.split(' '); if(w.length<4)return w.map(w=>({word:w,blank:false})); const n=Math.max(1,Math.floor(w.length*diff*0.15)); const s=new Set(); while(s.size<n){ const i=Math.floor(Math.random()*w.length); if(w[i].length>2&&!/^[',.!?;:]+$/.test(w[i]))s.add(i) } return w.map((w,i)=>({word:w,blank:s.has(i)})) }
-  useEffect(() => { if(learningMode==='cloze'&&currentSub){setClozeItems(generateCloze(currentSub.english_text,clozeDifficulty));setClozeAnswers({});setClozeSubmitted(false)} if(learningMode==='translate'&&currentSub){setTranslateAnswers({});setTranslateSubmitted(false)} if(learningMode==='shadowing'){setRecordedAudio(null);setRecording(false)} }, [activeSubIndex,learningMode,clozeDifficulty])
+  useEffect(() => { if(learningMode==='cloze'&&currentSub){setClozeItems(generateCloze(currentSub.textEn,clozeDifficulty));setClozeAnswers({});setClozeSubmitted(false)} if(learningMode==='translate'&&currentSub){setTranslateAnswers({});setTranslateSubmitted(false)} if(learningMode==='shadowing'){setRecordedAudio(null);setRecording(false)} }, [activeSubIndex,learningMode,clozeDifficulty])
   const submitCloze = () => setClozeSubmitted(true)
 
   useEffect(() => { if(!wordPopup)return; const t=setTimeout(()=>setWordPopup(null),4000); const c=()=>setWordPopup(null); document.addEventListener('click',c,{once:true}); return()=>{clearTimeout(t);document.removeEventListener('click',c)} }, [wordPopup])
@@ -196,8 +207,61 @@ export default function VideoDetail() {
 
   const videoSrc = video.video_local || video.video_url
   const currentSub = activeSubIndex >= 0 ? video.subtitles[activeSubIndex] : null
-  const englishWords = currentSub ? currentSub.english_text.split(' ') : []
+  const englishWords = currentSub ? currentSub.textEn.split(' ') : []
   const submitTranslate = () => setTranslateSubmitted(true)
+
+  const renderSidebarContent = () => (
+    <>
+      {sidebarTab === 'subtitles' && (
+        <div className="subtitle-list-new">
+          {video.subtitles.map((sub, idx) => (
+            <div key={sub.id||idx} id={`sub-${idx}`} className={`subtitle-item-new ${idx===activeSubIndex?'active':''}`} onClick={()=>jumpToSubtitle(sub.startTime)}>
+              <span className="sub-time-new">{formatTime(sub.startTime)}</span>
+              <div className="sub-body-new">
+                <div className="sub-texts-new">
+                  {subtitleMode!=='chinese'&&<p className="sub-english-new">{sub.textEn.split(' ').map((w,wi)=><span key={wi} className="sub-word-new" onClick={e=>handleWordClick(w,e)}>{w} </span>)}</p>}
+                  {subtitleMode!=='english'&&<p className="sub-chinese-new">{sub.textCn}</p>}
+                </div>
+                {sub.highlightWords&&sub.highlightWords.length>0&&<div className="sub-keywords-new">{sub.highlightWords.map((kw,ki)=><span key={ki} className="keyword-tag-new">{kw}</span>)}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {sidebarTab === 'words' && (
+        <div className="keywords-panel">
+          {derivedData.keywords.length===0?<p className="sidebar-empty">暂无重点单词</p>:derivedData.keywords.map((kw,i)=>
+            <div key={i} className="keyword-item-new" onClick={()=>jumpToSubtitle(kw.times[0])}>
+              <div className="keyword-main"><span className="keyword-word">{kw.word}</span><span className="keyword-phonetic">/{kw.word}/</span></div>
+              <div className="keyword-meta"><span className="keyword-count">出现 {kw.count} 次</span><span className="keyword-time">{formatTime(kw.times[0])}</span></div>
+              <button className="keyword-add-vocab" onClick={e=>{e.stopPropagation();authFetch('/vocab',{method:'POST',body:JSON.stringify({word:kw.word,videoId:id,videoTitle:video?.title})}).then(r=>r.json()).then(d=>{if(d.ok)authFetch('/vocab').then(r=>r.json()).then(d=>setVocabulary(d.vocabulary||[])).catch(()=>{})}).catch(()=>{})}}><Star size={14}/></button>
+            </div>
+          )}
+        </div>
+      )}
+      {sidebarTab === 'phrases' && (
+        <div className="keywords-panel">
+          {derivedData.phrases.length===0?<p className="sidebar-empty">暂无重点短句</p>:derivedData.phrases.map((sub,i)=>
+            <div key={i} className="phrase-item-new" onClick={()=>jumpToSubtitle(sub.startTime)}>
+              <span className="phrase-time">{formatTime(sub.startTime)}</span>
+              <p className="phrase-en">{sub.textEn}</p><p className="phrase-cn">{sub.textCn}</p>
+              {sub.highlightWords&&<div className="sub-keywords-new" style={{marginTop:6}}>{sub.highlightWords.map((kw,ki)=><span key={ki} className="keyword-tag-new">{kw}</span>)}</div>}
+            </div>
+          )}
+        </div>
+      )}
+      {sidebarTab === 'expressions' && (
+        <div className="keywords-panel">
+          {derivedData.expressions.length===0?<p className="sidebar-empty">暂无地道表达</p>:derivedData.expressions.map((sub,i)=>
+            <div key={i} className="phrase-item-new" onClick={()=>jumpToSubtitle(sub.startTime)}>
+              <span className="phrase-time">{formatTime(sub.startTime)}</span>
+              <p className="phrase-en">{sub.textEn}</p><p className="phrase-cn">{sub.textCn}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
 
   return (
     <div className="video-detail-page">
@@ -224,12 +288,12 @@ export default function VideoDetail() {
               <video ref={videoRef} src={videoSrc}
                 onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata}
                 onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-                onEnded={handleVideoEnded} className="video-element-new" playsInline crossOrigin="anonymous" />
+                onEnded={handleVideoEnded} className="video-element-new" playsInline crossOrigin="anonymous" preload="auto" />
 
               {currentSub && subtitleMode !== 'hidden' && (
-                <div className="video-overlay-subtitles-new" onClick={togglePlay}>
-                  {subtitleMode !== 'chinese' && <p className="overlay-english-new">{currentSub.english_text}</p>}
-                  {subtitleMode !== 'english' && <p className="overlay-chinese-new">{currentSub.chinese_text}</p>}
+                <div className="video-overlay-subtitles-new" onClick={togglePlay} style={{ fontSize: subtitleFontSize + 'px' }}>
+                  {subtitleMode !== 'chinese' && <p className="overlay-english-new">{currentSub.textEn}</p>}
+                  {subtitleMode !== 'english' && <p className="overlay-chinese-new">{currentSub.textCn}</p>}
                 </div>
               )}
 
@@ -247,10 +311,6 @@ export default function VideoDetail() {
                     <span className="time-display-new">{formatTime(currentTime)} / {formatTime(duration)}</span>
                   </div>
                   <div className="controls-right-new">
-                    <div className="speed-control-wrapper">
-                      <button className="ctrl-btn-new" onClick={() => setShowSpeedMenu(!showSpeedMenu)}><Gauge size={16} /><span className="speed-label">{playbackRate}x</span></button>
-                      {showSpeedMenu && <div className="speed-menu">{SPEEDS.map(s => <button key={s} className={`speed-option ${playbackRate===s?'active':''}`} onClick={()=>changeSpeed(s)}>{s}x</button>)}</div>}
-                    </div>
                     <div className="subtitle-tabs-new">
                       {['bilingual','english','chinese','hidden'].map(m => <button key={m} className={`subtitle-tab-new ${subtitleMode===m?'active':''}`} onClick={()=>setSubtitleMode(m)}>{m==='bilingual'?'双语':m==='english'?'EN':m==='chinese'?'中':'关'}</button>)}
                     </div>
@@ -262,30 +322,36 @@ export default function VideoDetail() {
           </div>
 
           {/* ── Sentence Control Bar (single row) ── */}
-          <div className="sentence-controls-bar">
-            <button onClick={() => setShowVideo(!showVideo)} className="sc-btn sc-toggle" title={showVideo?'隐藏视频':'显示视频'}>{showVideo?'🙈':'👁'}<span>{showVideo?'隐藏':'显示'}</span></button>
-            <button onClick={goPrevSentence} className="sc-btn"><SkipBack size={14} /><span>上一句</span></button>
-            <button onClick={togglePlay} className="sc-btn sc-play">{playing?<Pause size={16}/>:<Play size={16}/>}<span>{playing?'暂停':'重播'}</span></button>
-            <button onClick={goNextSentence} className="sc-btn"><span>下一句</span><SkipForward size={14}/></button>
-            <div className="sc-sep" />
-            <div className="sc-ab-group">
-              <button onClick={()=>setABPoint('A')} className={`sc-btn sc-ab ${abLoopA!==null?'sc-ab-active':''}`}>A{abLoopA!==null?` ${formatTime(abLoopA)}`:''}</button>
-              <button onClick={()=>setABPoint('B')} className={`sc-btn sc-ab ${abLoopB!==null?'sc-ab-active':''}`}>B{abLoopB!==null?` ${formatTime(abLoopB)}`:''}</button>
-              {(abLoopA!==null||abLoopB!==null)&&<button onClick={clearABLoop} className="sc-btn sc-close">✕</button>}
+          <div className="sentence-controls-bar desktop-only">
+            <div className="sentence-controls-left">
+              <button onClick={() => setShowVideo(!showVideo)} className="sc-btn sc-toggle" title={showVideo?'隐藏视频':'显示视频'}>{showVideo?'🙈':'👁'}<span>{showVideo?'隐藏':'显示'}</span></button>
+              <button onClick={cycleABLoop} className={`sc-btn sc-ab ${abLoopB!==null?'sc-ab-active':abLoopA!==null?'sc-ab-active':''}`}>
+                {abLoopA === null ? 'A' : abLoopB === null ? 'B' : '✕'}
+              </button>
+              <button onClick={cycleLoop} className={`sc-btn ${loopMode!=='off'?'sc-active':''}`}><Repeat size={14}/><span>{loopMode==='off'?'循环':loopMode==='sentence'?'单句':'全部'}</span></button>
+              <button onClick={()=>setAutoPauseSentence(!autoPauseSentence)} className={`sc-btn ${autoPauseSentence?'sc-active':''}`}>⏸<span>单句暂停</span></button>
+              <select className="sc-gap-select" value={sentenceGap} onChange={e=>setSentenceGap(Number(e.target.value))}>
+                <option value={0}>间隔 0s</option><option value={1}>间隔 1s</option><option value={2}>间隔 2s</option><option value={3}>间隔 3s</option><option value={5}>间隔 5s</option>
+              </select>
             </div>
-            <button onClick={cycleLoop} className={`sc-btn ${loopMode!=='off'?'sc-active':''}`}><Repeat size={14}/><span>{loopMode==='off'?'循环':loopMode==='sentence'?'单句':'全部'}</span></button>
-            <button onClick={()=>setAutoPauseSentence(!autoPauseSentence)} className={`sc-btn ${autoPauseSentence?'sc-active':''}`}>⏸<span>单句暂停</span></button>
-            <select className="sc-gap-select" value={sentenceGap} onChange={e=>setSentenceGap(Number(e.target.value))}>
-              <option value={0}>间隔 0s</option><option value={1}>间隔 1s</option><option value={2}>间隔 2s</option><option value={3}>间隔 3s</option><option value={5}>间隔 5s</option>
-            </select>
-            <div className="speed-control-wrapper">
-              <button className="sc-btn" onClick={() => setShowSpeedMenu(!showSpeedMenu)}><Gauge size={14} /><span>{playbackRate}x</span></button>
-              {showSpeedMenu && <div className="speed-menu">{SPEEDS.map(s => <button key={s} className={`speed-option ${playbackRate===s?'active':''}`} onClick={()=>changeSpeed(s)}>{s}x</button>)}</div>}
+            <div className="sentence-controls-center">
+              <button onClick={goPrevSentence} className="sc-btn"><SkipBack size={14} /><span>上一句</span></button>
+              <button onClick={togglePlay} className="sc-btn sc-play">{playing?<Pause size={16}/>:<Play size={16}/>}<span>{playing?'暂停':'播放'}</span></button>
+              <button onClick={goNextSentence} className="sc-btn"><span>下一句</span><SkipForward size={14}/></button>
+            </div>
+            <div className="sentence-controls-right">
+              <div className="speed-control-wrapper">
+                <button className="sc-btn" onClick={() => setShowSpeedMenu(!showSpeedMenu)}><Gauge size={14} /><span>{playbackRate}x</span></button>
+                {showSpeedMenu && <div className="speed-menu">{SPEEDS.map(s => <button key={s} className={`speed-option ${playbackRate===s?'active':''}`} onClick={()=>changeSpeed(s)}>{s}x</button>)}</div>}
+              </div>
+              <select className="sc-gap-select" value={subtitleFontSize} onChange={e => { const v = Number(e.target.value); setSubtitleFontSize(v); localStorage.setItem('shadow_voice_fontsize', v) }}>
+                <option value={12}>Aa 12</option><option value={14}>Aa 14</option><option value={16}>Aa 16</option><option value={18}>Aa 18</option><option value={20}>Aa 20</option><option value={22}>Aa 22</option>
+              </select>
             </div>
           </div>
 
           {/* ── Mode Tabs ── */}
-          <div className="mode-bar">
+          <div className="mode-bar desktop-only">
             {[
               { key: 'normal', icon: '📖', label: '正常泛听' },
               { key: 'shadowing', icon: '🎤', label: '跟读' },
@@ -303,8 +369,8 @@ export default function VideoDetail() {
             <div className="mode-content">
               {learningMode === 'shadowing' && (
                 <div className="mode-shadowing">
-                  <p className="mode-sentence-en">{currentSub.english_text}</p>
-                  <p className="mode-sentence-cn">{currentSub.chinese_text}</p>
+                  <p className="mode-sentence-en">{currentSub.textEn}</p>
+                  <p className="mode-sentence-cn">{currentSub.textCn}</p>
                   <div className="mode-shadowing-actions">
                     {!recording ? <button onClick={startRecording} className="mode-action-btn record">🎙️ 开始录音</button>
                       : <button onClick={stopRecording} className="mode-action-btn recording">⏹ 停止录音</button>}
@@ -315,7 +381,7 @@ export default function VideoDetail() {
 
               {learningMode === 'cloze' && (
                 <div className="mode-cloze">
-                  <p className="mode-sentence-cn">{currentSub.chinese_text}</p>
+                  <p className="mode-sentence-cn">{currentSub.textCn}</p>
                   <div className="mode-cloze-text">
                     {clozeItems.map((item, i) => (
                       <span key={i} className="cloze-word-wrap">
@@ -346,7 +412,7 @@ export default function VideoDetail() {
 
               {learningMode === 'translate' && (
                 <div className="mode-translate">
-                  <p className="mode-sentence-cn mode-translate-cn">{currentSub.chinese_text}</p>
+                  <p className="mode-sentence-cn mode-translate-cn">{currentSub.textCn}</p>
                   <div className="mode-translate-inputs">
                     {englishWords.map((word, i) => {
                       const cw = word.replace(/[^a-zA-Z']/g,''); if (cw.length===0) return <span key={i} className="translate-punct">{word}</span>
@@ -362,14 +428,57 @@ export default function VideoDetail() {
                     <button onClick={submitTranslate} className="mode-action-btn check">✅ 检查</button>
                     {translateSubmitted && <button onClick={()=>{setTranslateAnswers({});setTranslateSubmitted(false)}} className="mode-action-btn retry">🔄 重试</button>}
                   </div>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* ── Mobile: Core Nav Bar ── */}
+          <div className="mobile-nav-bar">
+            <button onClick={goPrevSentence} className="mnav-btn"><SkipBack size={24} /></button>
+            <button onClick={togglePlay} className="mnav-btn mnav-play">{playing ? <Pause size={32} /> : <Play size={32} />}</button>
+            <button onClick={goNextSentence} className="mnav-btn"><SkipForward size={24} /></button>
+          </div>
+
+          {/* ── Mobile: Quick Settings Bar ── */}
+          <div className="mobile-settings-bar">
+            <select className="ms-select" value={learningMode} onChange={e => setLearningMode(e.target.value)}>
+              <option value="normal">📖 正常</option>
+              <option value="shadowing">🎤 跟读</option>
+              <option value="cloze">✏️ 挖空</option>
+              <option value="translate">🔄 中译英</option>
+            </select>
+            <button onClick={() => setSubtitleMode(subtitleMode==='bilingual'?'english':subtitleMode==='english'?'chinese':subtitleMode==='chinese'?'hidden':'bilingual')} className="ms-btn">
+              {subtitleMode==='bilingual'?'🌐':subtitleMode==='english'?'EN':subtitleMode==='chinese'?'中':'关'}
+            </button>
+            <div className="speed-control-wrapper">
+              <button className="ms-btn" onClick={() => setShowSpeedMenu(!showSpeedMenu)}>{playbackRate}x</button>
+              {showSpeedMenu && <div className="speed-menu">{SPEEDS.map(s => <button key={s} className={`speed-option ${playbackRate===s?'active':''}`} onClick={()=>changeSpeed(s)}>{s}x</button>)}</div>}
+            </div>
+            <button onClick={() => setShowMobileMore(!showMobileMore)} className={`ms-btn ${showMobileMore?'active':''}`}>⚙</button>
+          </div>
+
+          {/* ── Mobile: More Panel ── */}
+          {showMobileMore && (
+            <div className="mobile-more-panel">
+              <button onClick={() => setShowVideo(!showVideo)} className="sc-btn sc-toggle">{showVideo?'🙈 隐藏':'👁 显示'}</button>
+              <button onClick={cycleABLoop} className={`sc-btn sc-ab ${abLoopB!==null?'sc-ab-active':abLoopA!==null?'sc-ab-active':''}`}>
+                {abLoopA===null?'A':abLoopB===null?'B':'✕'}
+              </button>
+              <button onClick={cycleLoop} className={`sc-btn ${loopMode!=='off'?'sc-active':''}`}><Repeat size={14}/> {loopMode==='off'?'循环':loopMode==='sentence'?'单句':'全部'}</button>
+              <button onClick={()=>setAutoPauseSentence(!autoPauseSentence)} className={`sc-btn ${autoPauseSentence?'sc-active':''}`}>⏸ 单句暂停</button>
+              <select className="sc-gap-select" value={sentenceGap} onChange={e=>setSentenceGap(Number(e.target.value))}>
+                <option value={0}>间隔 0s</option><option value={1}>间隔 1s</option><option value={2}>间隔 2s</option><option value={3}>间隔 3s</option><option value={5}>间隔 5s</option>
+              </select>
+              <select className="sc-gap-select" value={subtitleFontSize} onChange={e=>{const v=Number(e.target.value);setSubtitleFontSize(v);localStorage.setItem('shadow_voice_fontsize',v)}}>
+                <option value={12}>Aa 12</option><option value={14}>Aa 14</option><option value={16}>Aa 16</option><option value={18}>Aa 18</option><option value={20}>Aa 20</option>
+              </select>
             </div>
           )}
         </div>
+          )}
+        </div>
 
-        {/* ── RIGHT COLUMN: Sidebar ── */}
-        <div className="sidebar-panel-new">
+        {/* ── RIGHT COLUMN: Sidebar (Desktop) ── */}
+        <div className="sidebar-panel-new desktop-sidebar">
           <div className="sidebar-tabs">
             {[
               { key: 'subtitles', icon: <List size={15} />, label: '字幕', count: video.subtitle_count },
@@ -382,55 +491,8 @@ export default function VideoDetail() {
               </button>
             ))}
           </div>
-          <div className="sidebar-content" ref={subtitleContainerRef}>
-            {sidebarTab === 'subtitles' && (
-              <div className="subtitle-list-new">
-                {video.subtitles.map((sub, idx) => (
-                  <div key={sub.id||idx} id={`sub-${idx}`} className={`subtitle-item-new ${idx===activeSubIndex?'active':''}`} onClick={()=>jumpToSubtitle(sub.start_time)}>
-                    <span className="sub-time-new">{formatTime(sub.start_time)}</span>
-                    <div className="sub-body-new">
-                      <div className="sub-texts-new">
-                        {subtitleMode!=='chinese'&&<p className="sub-english-new">{sub.english_text.split(' ').map((w,wi)=><span key={wi} className="sub-word-new" onClick={e=>handleWordClick(w,e)}>{w} </span>)}</p>}
-                        {subtitleMode!=='english'&&<p className="sub-chinese-new">{sub.chinese_text}</p>}
-                      </div>
-                      {sub.keywords&&sub.keywords.length>0&&<div className="sub-keywords-new">{sub.keywords.map((kw,ki)=><span key={ki} className="keyword-tag-new">{kw}</span>)}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {sidebarTab === 'words' && (
-              <div className="keywords-panel">
-                {derivedData.keywords.length===0?<p className="sidebar-empty">暂无重点单词</p>:derivedData.keywords.map((kw,i)=>
-                  <div key={i} className="keyword-item-new" onClick={()=>jumpToSubtitle(kw.times[0])}>
-                    <div className="keyword-main"><span className="keyword-word">{kw.word}</span><span className="keyword-phonetic">/{kw.word}/</span></div>
-                    <div className="keyword-meta"><span className="keyword-count">出现 {kw.count} 次</span><span className="keyword-time">{formatTime(kw.times[0])}</span></div>
-                    <button className="keyword-add-vocab" onClick={e=>{e.stopPropagation();authFetch('/vocab',{method:'POST',body:JSON.stringify({word:kw.word,videoId:id,videoTitle:video?.title})}).then(r=>r.json()).then(d=>{if(d.ok)authFetch('/vocab').then(r=>r.json()).then(d=>setVocabulary(d.vocabulary||[])).catch(()=>{})}).catch(()=>{})}}><Star size={14}/></button>
-                  </div>
-                )}
-              </div>
-            )}
-            {sidebarTab === 'phrases' && (
-              <div className="keywords-panel">
-                {derivedData.phrases.length===0?<p className="sidebar-empty">暂无重点短句</p>:derivedData.phrases.map((sub,i)=>
-                  <div key={i} className="phrase-item-new" onClick={()=>jumpToSubtitle(sub.start_time)}>
-                    <span className="phrase-time">{formatTime(sub.start_time)}</span>
-                    <p className="phrase-en">{sub.english_text}</p><p className="phrase-cn">{sub.chinese_text}</p>
-                    {sub.keywords&&<div className="sub-keywords-new" style={{marginTop:6}}>{sub.keywords.map((kw,ki)=><span key={ki} className="keyword-tag-new">{kw}</span>)}</div>}
-                  </div>
-                )}
-              </div>
-            )}
-            {sidebarTab === 'expressions' && (
-              <div className="keywords-panel">
-                {derivedData.expressions.length===0?<p className="sidebar-empty">暂无地道表达</p>:derivedData.expressions.map((sub,i)=>
-                  <div key={i} className="phrase-item-new" onClick={()=>jumpToSubtitle(sub.start_time)}>
-                    <span className="phrase-time">{formatTime(sub.start_time)}</span>
-                    <p className="phrase-en">{sub.english_text}</p><p className="phrase-cn">{sub.chinese_text}</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="sidebar-content" ref={subtitleContainerRef} style={{ fontSize: subtitleFontSize + 'px' }}>
+            {renderSidebarContent()}
           </div>
         </div>
       </div>
@@ -441,6 +503,7 @@ export default function VideoDetail() {
           <h3>视频信息</h3>
           <div className="info-grid-new">
             <div className="info-item-new"><span className="info-label-new">难度</span><span className={`level-badge level-${video.level}`}>{video.level}</span></div>
+            {video.accent && <div className="info-item-new"><span className="info-label-new">口音</span><span className="video-accent-detail">{video.accent}</span></div>}
             <div className="info-item-new"><span className="info-label-new">话题</span><div className="topic-tags-new">{video.topics.map((t,i)=><span key={i} className="topic-tag-new">{t}</span>)}</div></div>
             <div className="info-item-new"><span className="info-label-new">时长</span><span>{formatTime(video.duration)}</span></div>
             <div className="info-item-new"><span className="info-label-new">字幕</span><span>{video.subtitle_count} 条</span></div>
@@ -448,6 +511,37 @@ export default function VideoDetail() {
           </div>
           {video.description&&<p className="info-description-new">{video.description}</p>}
         </div>
+      </div>
+
+      {/* ── Mobile: Bottom Panel ── */}
+      <div className="mobile-bottom-panel">
+        <div className="mobile-panel-tabs">
+          {[
+            { key: 'subtitles', icon: <List size={18} />, label: '字幕' },
+            { key: 'words', icon: <BookOpen size={18} />, label: '单词' },
+            { key: 'phrases', icon: <MessageSquare size={18} />, label: '短句' },
+            { key: 'expressions', icon: <Sparkles size={18} />, label: '表达' },
+          ].map(tab => (
+            <button key={tab.key} className={`mp-tab-btn ${sidebarTab===tab.key&&mobilePanelOpen?'active':''}`}
+              onClick={() => {
+                if (sidebarTab === tab.key) setMobilePanelOpen(!mobilePanelOpen)
+                else { setSidebarTab(tab.key); setMobilePanelOpen(true) }
+              }}>
+              {tab.icon}<span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        {mobilePanelOpen && (
+          <div className="mobile-panel-sheet">
+            <div className="mobile-panel-header">
+              <div className="mobile-panel-handle" />
+              <button onClick={() => setMobilePanelOpen(false)} className="mp-close-btn"><X size={20} /></button>
+            </div>
+            <div className="mobile-panel-body" style={{ fontSize: subtitleFontSize + 'px' }}>
+              {renderSidebarContent()}
+            </div>
+          </div>
+        )}
       </div>
 
       {wordPopup && (

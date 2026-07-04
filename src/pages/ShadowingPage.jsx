@@ -50,7 +50,7 @@ export default function ShadowingPage() {
           return
         }
         const subs = (found.subtitles || []).filter(
-          s => s.english_text && s.english_text.trim()
+          s => s.textEn && s.textEn.trim()
         )
         if (subs.length === 0) {
           setError('该视频没有可用的英文字幕')
@@ -73,7 +73,7 @@ export default function ShadowingPage() {
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
 
-    audio.currentTime = sub.start_time
+    audio.currentTime = sub.startTime
     audio.play().then(() => setIsPlaying(true)).catch(() => {})
   }
 
@@ -82,7 +82,7 @@ export default function ShadowingPage() {
     const audio = audioRef.current
     const sub = subtitles[currentIndex]
     if (!audio || !sub) return
-    if (audio.currentTime >= sub.end_time) {
+    if (audio.currentTime >= sub.endTime) {
       audio.pause()
       setIsPlaying(false)
     }
@@ -284,7 +284,7 @@ export default function ShadowingPage() {
             {/* Chinese hint */}
             <div className={`dictation-hint ${showChinese ? 'visible' : 'hidden'}`}>
               {showChinese ? (
-                <p className="dictation-chinese">{currentSub?.chinese_text}</p>
+                <p className="dictation-chinese">{currentSub?.textCn}</p>
               ) : (
                 <p className="dictation-chinese-placeholder">
                   <EyeOff size={14} /><span>中文已隐藏 (Ctrl+H 显示)</span>
@@ -294,7 +294,7 @@ export default function ShadowingPage() {
 
             {/* English text for shadowing */}
             <div className="shadowing-text">
-              <p className="shadowing-english">{currentSub?.english_text}</p>
+              <p className="shadowing-english">{currentSub?.textEn}</p>
             </div>
 
             {/* Audio bar */}
@@ -304,7 +304,7 @@ export default function ShadowingPage() {
                 <span>{isPlaying ? '播放中...' : '听原声'}</span>
               </button>
               <span className="dictation-time">
-                {currentSub ? formatTime(currentSub.start_time) : ''} - {currentSub ? formatTime(currentSub.end_time) : ''}
+                {currentSub ? formatTime(currentSub.startTime) : ''} - {currentSub ? formatTime(currentSub.endTime) : ''}
               </span>
             </div>
 
@@ -375,7 +375,7 @@ export default function ShadowingPage() {
                     setRecordingState('idle')
                     setCurrentIndex(idx)
                   }}
-                  title={`第 ${idx + 1} 句: ${sub.english_text?.substring(0, 40)}...`}
+                  title={`第 ${idx + 1} 句: ${sub.textEn?.substring(0, 40)}...`}
                 />
               )
             })}
