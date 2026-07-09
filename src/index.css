@@ -3309,35 +3309,34 @@ input { font: inherit; }
   .desktop-sidebar { display: none !important; }
   .video-content-new { gap: 12px; }
 
-  /* Mobile nav bar */
+  /* Speed menu: drop downward on mobile */
+  .speed-menu { top: 100%; bottom: auto; margin-top: 6px; margin-bottom: 0; }
+
+  /* ── Row ①: Core Playback ── */
   .mobile-nav-bar {
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    gap: 20px;
-    padding: 12px 16px;
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    gap: 16px;
+    padding: 12px 8px;
   }
   .mnav-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 12px;
     border: 1px solid #e2e8f0;
     background: #f8fafc;
     color: #475569;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
   }
   .mnav-btn:hover, .mnav-btn:active { background: #f1f5f9; border-color: #cbd5e1; }
   .mnav-btn.mnav-play {
-    width: 64px;
-    height: 64px;
+    padding: 10px 28px;
     background: #2563eb;
     color: #fff;
     border-color: #2563eb;
@@ -3345,55 +3344,114 @@ input { font: inherit; }
   }
   .mnav-btn.mnav-play:hover, .mnav-btn.mnav-play:active { background: #1d4ed8; }
 
-  /* Mobile settings bar */
-  .mobile-settings-bar {
+  /* ── Row ②: Learning Modes ── */
+  .mobile-mode-bar {
+    display: flex !important;
+    gap: 4px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 12px;
+  }
+  .mmode-btn {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
+    padding: 8px 4px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mmode-btn:hover { color: #334155; background: #e2e8f0; }
+  .mmode-btn.active {
+    background: #fff;
+    color: #2563eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .mmode-icon { font-size: 16px; line-height: 1; }
+  .mmode-label { line-height: 1; }
+
+  /* ── Row ③: Tools Bar ── */
+  .mobile-tools-bar {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     background: #fff;
     border-radius: 12px;
     border: 1px solid #e5e7eb;
     flex-wrap: wrap;
   }
-  .ms-select {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    font-size: 13px;
-    font-weight: 500;
-    color: #475569;
-    background: #f8fafc;
-    outline: none;
-  }
-  .ms-btn {
+  .mtool-btn {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     padding: 6px 10px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     color: #475569;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     cursor: pointer;
     transition: all 0.15s;
   }
-  .ms-btn:hover, .ms-btn:active { background: #f1f5f9; }
-  .ms-btn.active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+  .mtool-btn:hover, .mtool-btn:active { background: #f1f5f9; border-color: #cbd5e1; }
+  .mtool-btn.active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 
-  /* Mobile more panel */
-  .mobile-more-panel {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px;
+  /* ── Row ③b: Advanced Panel ── */
+  .mobile-advanced-panel {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
     background: #f8fafc;
     border-radius: 12px;
     border: 1px solid #e5e7eb;
+  }
+  .madv-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
   }
+  .madv-row label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+  .madv-row select {
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    background: #fff;
+    outline: none;
+  }
+  .madv-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .madv-btn:hover, .madv-btn:active { background: #f1f5f9; }
+  .madv-btn.active { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 
   /* Mobile bottom panel */
   .mobile-bottom-panel {
@@ -3488,6 +3546,8 @@ input { font: inherit; }
 }
 @media (min-width: 769px) {
   .mobile-nav-bar,
-  .mobile-settings-bar,
+  .mobile-mode-bar,
+  .mobile-tools-bar,
+  .mobile-advanced-panel,
   .mobile-bottom-panel { display: none !important; }
 }

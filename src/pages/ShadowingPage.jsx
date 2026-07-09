@@ -49,17 +49,26 @@ export default function ShadowingPage() {
           setLoading(false)
           return
         }
-        const subs = (found.subtitles || []).filter(
-          s => s.textEn && s.textEn.trim()
-        )
-        if (subs.length === 0) {
-          setError('该视频没有可用的英文字幕')
-          setLoading(false)
-          return
-        }
-        setVideo(found)
-        setSubtitles(subs)
-        setLoading(false)
+        // Load subtitles from episode folder
+        fetch(`/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`)
+          .then(r => r.json())
+          .then(rawSubs => {
+            const subs = (Array.isArray(rawSubs) ? rawSubs : []).filter(
+              s => s.textEn && s.textEn.trim()
+            )
+            if (subs.length === 0) {
+              setError('该视频没有可用的英文字幕')
+              setLoading(false)
+              return
+            }
+            setVideo(found)
+            setSubtitles(subs)
+            setLoading(false)
+          })
+          .catch(() => {
+            setError('字幕加载失败')
+            setLoading(false)
+          })
       })
       .catch(() => {
         setError('加载失败')

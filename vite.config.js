@@ -38,11 +38,14 @@ function generateDataIndex() {
 
     const vid = info.id || dirName
 
-    // Read subtitles
-    let subtitles = []
+    // Count subtitles (don't embed them — VideoDetail loads per-episode)
+    let subtitleCount = 0
     const subsPath = path.join(epDir, 'subtitles.json')
     if (fs.existsSync(subsPath)) {
-      try { subtitles = JSON.parse(fs.readFileSync(subsPath, 'utf-8')) } catch { /* ignore parse error */ }
+      try {
+        const subs = JSON.parse(fs.readFileSync(subsPath, 'utf-8'))
+        subtitleCount = Array.isArray(subs) ? subs.length : 0
+      } catch { /* ignore parse error */ }
     }
 
     // Collect levels, topics and accents
@@ -87,8 +90,7 @@ function generateDataIndex() {
       accent,
       duration: info.duration || 0,
       creator_name: info.creator || info.creator_name || '',
-      subtitle_count: subtitles.length,
-      subtitles,
+      subtitle_count: subtitleCount,
       video_local: videoExists ? videoRel : null,
       video_url: null,
       thumbnail_local: thumbRel,
@@ -192,6 +194,7 @@ function dataServerPlugin() {
 export default defineConfig({
   plugins: [react(), dataServerPlugin()],
   server: {
+    host: '0.0.0.0',
     port: 5173,
     proxy: {
       '/api': 'http://localhost:3001'

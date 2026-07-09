@@ -92,14 +92,21 @@ export default function VideoDetail() {
       setAllVideos(videos)
       const found = videos.find(v => v.id === id)
       if (found) {
-        setVideo(found)
         setWatchedHistory(prev => {
           const updated = [found.id, ...prev.filter(vid => vid !== found.id)].slice(0, 50)
           localStorage.setItem('shadow_voice_watched', JSON.stringify(updated))
           return updated
         })
-      } else { setError('视频未找到') }
-      setLoading(false)
+        // Load subtitles from the episode folder (not in consolidated.json to keep it small)
+        const subsUrl = `/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`
+        fetch(subsUrl).then(r => r.json()).then(subs => {
+          setVideo({ ...found, subtitles: Array.isArray(subs) ? subs : [] })
+          setLoading(false)
+        }).catch(() => {
+          setVideo({ ...found, subtitles: [] })
+          setLoading(false)
+        })
+      } else { setError('视频未找到'); setLoading(false) }
     }).catch(() => { setError('加载失败'); setLoading(false) })
   }, [id])
 
@@ -268,13 +275,13 @@ export default function VideoDetail() {
       <div className="video-detail-header">
         <button onClick={() => navigate('/')} className="back-btn"><ArrowLeft size={20} /><span>返回</span></button>
         <h1 className="video-detail-title">{video.title}</h1>
-        <div className="video-detail-actions">
+        <div className="video-detail-actions desktop-only">
           <button onClick={() => setShowExport(!showExport)} className="action-btn"><Download size={16} /><span>导出</span></button>
         </div>
       </div>
 
       {showExport && (
-        <div className="export-panel-new">
+        <div className="export-panel-new desktop-only">
           <button onClick={exportWordDoc} className="export-btn-new">📄 导出 Word 文档</button>
           <button onClick={exportTxt} className="export-btn-new">📝 导出 TXT 文本</button>
         </div>
@@ -431,46 +438,60 @@ export default function VideoDetail() {
             </div>
           )}
 
-          {/* ── Mobile: Core Nav Bar ── */}
+          {/* ── Row ①: Core Playback ── */}
           <div className="mobile-nav-bar">
-            <button onClick={goPrevSentence} className="mnav-btn"><SkipBack size={24} /></button>
-            <button onClick={togglePlay} className="mnav-btn mnav-play">{playing ? <Pause size={32} /> : <Play size={32} />}</button>
-            <button onClick={goNextSentence} className="mnav-btn"><SkipForward size={24} /></button>
+            <button onClick={() => skipTime(-5)} className="mnav-btn"><SkipBack size={22} /><span>后退</span></button>
+            <button onClick={togglePlay} className="mnav-btn mnav-play">{playing ? <Pause size={28} /> : <Play size={28} />}</button>
+            <button onClick={() => skipTime(5)} className="mnav-btn"><span>快进</span><SkipForward size={22} /></button>
           </div>
 
-          {/* ── Mobile: Quick Settings Bar ── */}
-          <div className="mobile-settings-bar">
-            <select className="ms-select" value={learningMode} onChange={e => setLearningMode(e.target.value)}>
-              <option value="normal">📖 正常</option>
-              <option value="shadowing">🎤 跟读</option>
-              <option value="cloze">✏️ 挖空</option>
-              <option value="translate">🔄 中译英</option>
-            </select>
-            <button onClick={() => setSubtitleMode(subtitleMode==='bilingual'?'english':subtitleMode==='english'?'chinese':subtitleMode==='chinese'?'hidden':'bilingual')} className="ms-btn">
+          {/* ── Row ②: Learning Modes ── */}
+          <div className="mobile-mode-bar">
+            {[
+              { key: 'normal', icon: '📖', label: '正常' },
+              { key: 'shadowing', icon: '🎤', label: '跟读' },
+              { key: 'cloze', icon: '✏️', label: '挖空' },
+              { key: 'translate', icon: '🔄', label: '中译英' },
+            ].map(m => (
+              <button key={m.key} className={`mmode-btn ${learningMode===m.key?'active':''}`} onClick={()=>setLearningMode(m.key)}>
+                <span className="mmode-icon">{m.icon}</span>
+                <span className="mmode-label">{m.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── Row ③: Tools Bar + Advanced Panel ── */}
+          <div className="mobile-tools-bar">
+            <button onClick={() => setSubtitleMode(subtitleMode==='bilingual'?'english':subtitleMode==='english'?'chinese':subtitleMode==='chinese'?'hidden':'bilingual')} className="mtool-btn">
               {subtitleMode==='bilingual'?'🌐':subtitleMode==='english'?'EN':subtitleMode==='chinese'?'中':'关'}
             </button>
+            <button onClick={cycleLoop} className={`mtool-btn ${loopMode!=='off'?'active':''}`}><Repeat size={15}/></button>
+            <button onClick={cycleABLoop} className={`mtool-btn ${abLoopB!==null||abLoopA!==null?'active':''}`}>A-B</button>
             <div className="speed-control-wrapper">
-              <button className="ms-btn" onClick={() => setShowSpeedMenu(!showSpeedMenu)}>{playbackRate}x</button>
+              <button className="mtool-btn" onClick={() => setShowSpeedMenu(!showSpeedMenu)}>{playbackRate}x</button>
               {showSpeedMenu && <div className="speed-menu">{SPEEDS.map(s => <button key={s} className={`speed-option ${playbackRate===s?'active':''}`} onClick={()=>changeSpeed(s)}>{s}x</button>)}</div>}
             </div>
-            <button onClick={() => setShowMobileMore(!showMobileMore)} className={`ms-btn ${showMobileMore?'active':''}`}>⚙</button>
+            <button onClick={() => setShowMobileMore(!showMobileMore)} className={`mtool-btn ${showMobileMore?'active':''}`}>⚙</button>
           </div>
 
-          {/* ── Mobile: More Panel ── */}
           {showMobileMore && (
-            <div className="mobile-more-panel">
-              <button onClick={() => setShowVideo(!showVideo)} className="sc-btn sc-toggle">{showVideo?'🙈 隐藏':'👁 显示'}</button>
-              <button onClick={cycleABLoop} className={`sc-btn sc-ab ${abLoopB!==null?'sc-ab-active':abLoopA!==null?'sc-ab-active':''}`}>
-                {abLoopA===null?'A':abLoopB===null?'B':'✕'}
-              </button>
-              <button onClick={cycleLoop} className={`sc-btn ${loopMode!=='off'?'sc-active':''}`}><Repeat size={14}/> {loopMode==='off'?'循环':loopMode==='sentence'?'单句':'全部'}</button>
-              <button onClick={()=>setAutoPauseSentence(!autoPauseSentence)} className={`sc-btn ${autoPauseSentence?'sc-active':''}`}>⏸ 单句暂停</button>
-              <select className="sc-gap-select" value={sentenceGap} onChange={e=>setSentenceGap(Number(e.target.value))}>
-                <option value={0}>间隔 0s</option><option value={1}>间隔 1s</option><option value={2}>间隔 2s</option><option value={3}>间隔 3s</option><option value={5}>间隔 5s</option>
-              </select>
-              <select className="sc-gap-select" value={subtitleFontSize} onChange={e=>{const v=Number(e.target.value);setSubtitleFontSize(v);localStorage.setItem('shadow_voice_fontsize',v)}}>
-                <option value={12}>Aa 12</option><option value={14}>Aa 14</option><option value={16}>Aa 16</option><option value={18}>Aa 18</option><option value={20}>Aa 20</option>
-              </select>
+            <div className="mobile-advanced-panel">
+              <button onClick={() => setShowVideo(!showVideo)} className="madv-btn">{showVideo?'🙈 隐藏':'👁 显示'}</button>
+              <button onClick={()=>setAutoPauseSentence(!autoPauseSentence)} className={`madv-btn ${autoPauseSentence?'active':''}`}>⏸ 单句暂停</button>
+              <div className="madv-row">
+                <label>间隔</label>
+                <select value={sentenceGap} onChange={e=>setSentenceGap(Number(e.target.value))}>
+                  <option value={0}>0s</option><option value={1}>1s</option><option value={2}>2s</option><option value={3}>3s</option><option value={5}>5s</option>
+                </select>
+                <label>字号</label>
+                <select value={subtitleFontSize} onChange={e=>{const v=Number(e.target.value);setSubtitleFontSize(v);localStorage.setItem('shadow_voice_fontsize',v)}}>
+                  <option value={12}>12</option><option value={14}>14</option><option value={16}>16</option><option value={18}>18</option><option value={20}>20</option>
+                </select>
+              </div>
+              <div className="madv-row">
+                <button onClick={exportWordDoc} className="madv-btn">📄 Word</button>
+                <button onClick={exportTxt} className="madv-btn">📝 TXT</button>
+              </div>
             </div>
           )}
         </div>
