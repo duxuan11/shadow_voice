@@ -1,14 +1,62 @@
-/* ===== Reset & Base ===== */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@import "tailwindcss";
+
+/* Custom slim scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.6); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+@keyframes bounce-short {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.animate-bounce-short { animation: bounce-short 0.3s ease-in-out; }
+
+/* Custom volume slider */
+.volume-slider {
+  -webkit-appearance: none; appearance: none;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: none !important;
+}
+.volume-slider::-webkit-slider-runnable-track {
+  width: 100%; height: 4px; cursor: pointer;
+  background: transparent; border-radius: 9999px;
+}
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  height: 8px; width: 8px; border-radius: 50%;
+  background: #ffffff; cursor: pointer;
+  margin-top: -2px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease-in-out;
+}
+.volume-slider::-webkit-slider-thumb:hover { transform: scale(1.4); }
+.volume-slider::-moz-range-track {
+  width: 100%; height: 4px; cursor: pointer;
+  background: transparent; border-radius: 9999px;
+}
+.volume-slider::-moz-range-thumb {
+  height: 8px; width: 8px; border-radius: 50%;
+  background: #ffffff; cursor: pointer; border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease-in-out;
+}
+.volume-slider::-moz-range-thumb:hover { transform: scale(1.4); }
+
+/* ===== Reset & Base (preserved for non-Tailwind pages) ===== */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: #f5f7fa;
   color: #1a1a1a;
-  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 a { text-decoration: none; color: inherit; }
-button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+button { cursor: pointer; border: none; font: inherit; }
 input { font: inherit; }
 
 /* ===== App Layout ===== */
@@ -583,11 +631,6 @@ input { font: inherit; }
 }
 .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
 .play-btn { padding: 6px; }
-.volume-slider {
-  width: 80px;
-  accent-color: white;
-  height: 4px;
-}
 .time-display {
   color: white;
   font-size: 12px;
