@@ -253,7 +253,9 @@ export default function VideoDetail() {
     e.stopPropagation()
     const cw = word.replace(/[^a-zA-Z']/g, '').toLowerCase(); if (cw.length < 2) return
     const sd = SYNONYMS[cw]; const r = e.target.getBoundingClientRect()
-    setWordPopup({ word: cw, synonyms: sd?.synonyms || [], cn: sd?.cn || '', x: r.left, y: r.bottom + 4 })
+    const x = Math.min(r.left, window.innerWidth - 210)
+    const y = Math.min(r.bottom + 4, window.innerHeight - 180)
+    setWordPopup({ word: cw, synonyms: sd?.synonyms || [], cn: sd?.cn || '', x, y })
     pushToVocab(cw)
   }
 
@@ -290,49 +292,50 @@ export default function VideoDetail() {
   const currentSub = activeSubIndex >= 0 ? video.subtitles[activeSubIndex] : null
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none overflow-x-hidden pb-12">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 w-full flex-1 flex flex-col gap-5 animate-fade-in pb-28 md:pb-6">
+    <div className="min-h-screen bg-white flex flex-col font-sans overflow-x-hidden pb-20 md:pb-12">
+      <div className="max-w-7xl mx-auto px-2 md:px-6 py-2 md:py-6 w-full flex-1 flex flex-col gap-2 md:gap-5 animate-fade-in pb-2 md:pb-6">
 
-        {/* Subheader: Back / Title / Difficulty / Export */}
-        <div className="flex flex-col gap-2 md:gap-0 md:flex-row md:items-center justify-between bg-white/70 backdrop-blur-md p-3.5 rounded-2xl border border-slate-100 shadow-xs">
-          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+        {/* Header bar — reference: shadowtalk.top mobile nav bar */}
+        <div className="flex items-center justify-between bg-white/95 backdrop-blur-md px-3 py-2.5 md:px-4 md:py-3 rounded-2xl md:rounded-2xl border border-slate-100 shadow-sm">
+          {/* Left: back + title */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button onClick={() => navigate('/')}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0">
-              <ArrowLeft className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>返回课库</span>
+              className="flex items-center justify-center w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0">
+              <ArrowLeft className="h-4 w-4 md:h-3.5 md:w-3.5 stroke-[2.5]" />
+              <span className="hidden md:inline ml-1">返回课库</span>
             </button>
-            <div className="h-5 w-[1px] bg-slate-200 shrink-0" />
-            <h2 className="text-sm md:text-base font-extrabold text-slate-800 tracking-tight font-sans shrink-0">{video.title}</h2>
-            {video.level && <><div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden sm:block" />
-            <div className="flex items-center space-x-1">
-              <span className="text-[10px] font-bold text-slate-400">难度</span>
-              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${video.level === '初级' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : video.level === '高级' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
+            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight truncate">{video.title}</h2>
+          </div>
+          {/* Right: level (desktop) + export (desktop) */}
+          <div className="hidden md:flex items-center gap-2 shrink-0">
+            {video.level && (
+              <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-extrabold border ${video.level === '初级' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : video.level === '高级' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
                 {video.level}
               </span>
-            </div></>}
+            )}
+            <button onClick={() => setShowExport(!showExport)}
+              className="flex items-center space-x-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs">
+              <Download className="h-3.5 w-3.5" /><span>导出</span>
+            </button>
           </div>
-          <button onClick={() => setShowExport(!showExport)}
-            className="hidden md:flex items-center space-x-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0">
-            <Download className="h-3.5 w-3.5" /><span>导出学习笔记</span>
-          </button>
         </div>
 
+        {/* Export panel — desktop only */}
         {showExport && (
-          <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs flex items-center gap-3 flex-wrap">
+          <div className="hidden md:flex bg-white border border-slate-100 p-4 rounded-2xl shadow-xs items-center gap-3 flex-wrap">
             <button onClick={exportWordDoc} className="px-4 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-xl text-xs font-bold transition-all cursor-pointer">导出 Word 文档</button>
             <button onClick={exportTxt} className="px-4 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-xl text-xs font-bold transition-all cursor-pointer">导出 TXT 文本</button>
           </div>
         )}
 
         {/* Main Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-6 items-start">
           {/* LEFT COLUMN: Video + Practice Panel */}
-          <div className="lg:col-span-8 flex flex-col space-y-6">
+          <div className="lg:col-span-8 xl:col-span-7 flex flex-col space-y-3 md:space-y-6">
 
             {/* Video Player */}
             <div ref={playerContainerRef}
-              className="relative aspect-video w-full rounded-2xl bg-slate-950 shadow-lg overflow-hidden group select-none flex flex-col justify-end">
+              className="relative aspect-video w-full rounded-2xl bg-slate-950 shadow-lg overflow-hidden group flex flex-col justify-end">
               <video ref={videoRef} src={videoSrc}
                 poster={video.thumbnail_local}
                 onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata}
@@ -358,8 +361,7 @@ export default function VideoDetail() {
                       <ChevronLeft className="h-5 w-5 stroke-[2.5]" />
                     </button>
                     <button onClick={togglePlay} title={playing ? '暂停' : '播放'}
-                      style={{ backgroundColor: '#7c3aed' }}
-                      className="text-white p-2 rounded-full transition-all cursor-pointer shadow-[0_0_12px_rgba(124,58,237,0.4)] hover:brightness-110">
+                      className="text-white p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 transition-all cursor-pointer shadow-[0_0_12px_rgba(99,102,241,0.4)] hover:brightness-110">
                       {playing ? <Pause className="h-4.5 w-4.5 fill-white" /> : <Play className="h-4.5 w-4.5 fill-white ml-0.5" />}
                     </button>
                     <button onClick={goNextSentence} title="下一句" className="text-white hover:text-indigo-400 transition-colors cursor-pointer">
@@ -386,6 +388,33 @@ export default function VideoDetail() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Mobile playback controls — reference shadowtalk.top */}
+            <div className="flex md:hidden items-center justify-between px-1 py-2 gap-1">
+              <button onClick={goPrevSentence} className="flex items-center gap-0.5 px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-xs font-bold text-slate-600 transition-all cursor-pointer active:scale-95">
+                <ChevronLeft className="h-4 w-4 stroke-[2.5]" />
+                <span className="hidden sm:inline">上一句</span>
+              </button>
+              <button onClick={togglePlay}
+                className="flex items-center justify-center h-9 w-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-[0_2px_8px_rgba(99,102,241,0.35)] transition-all cursor-pointer active:scale-95">
+                {playing ? <Pause className="h-4.5 w-4.5 fill-white" /> : <Play className="h-4.5 w-4.5 fill-white ml-0.5" />}
+              </button>
+              <button onClick={goNextSentence} className="flex items-center gap-0.5 px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-xs font-bold text-slate-600 transition-all cursor-pointer active:scale-95">
+                <span className="hidden sm:inline">下一句</span>
+                <ChevronRight className="h-4 w-4 stroke-[2.5]" />
+              </button>
+              <div className="h-6 w-[1px] bg-slate-200 shrink-0" />
+              <button onClick={cycleSpeed} className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-xs font-bold text-slate-600 font-mono transition-all cursor-pointer active:scale-95">
+                {playbackRate}x
+              </button>
+              <button onClick={() => { setIsLooping(!isLooping); setLoopMode(isLooping ? 'off' : 'sentence') }}
+                className={`px-2.5 py-2 border rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${isLooping ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-200/60 text-slate-600'}`}>
+                <Repeat className={`h-4 w-4 stroke-[2.2] ${isLooping ? 'animate-spin' : ''}`} />
+              </button>
+              <button onClick={cycleSubtitleMode} className="px-2.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-xs font-bold text-slate-600 transition-all cursor-pointer active:scale-95">
+                {subtitleModeChar()}
+              </button>
             </div>
 
             {/* Desktop Practice Panel (exact match with reference PracticePanel.tsx) */}
@@ -458,10 +487,10 @@ export default function VideoDetail() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Interactivity Panel */}
-          <div className="lg:col-span-4">
-            <div className="bg-white border border-slate-100 rounded-2xl flex flex-col h-[calc(100vh-220px)] md:h-[calc(100vh-140px)] min-h-[480px] md:min-h-[580px] shadow-sm overflow-hidden">
-              <div className="grid grid-cols-4 border-b border-gray-100 bg-slate-50/50 p-1">
+          {/* RIGHT COLUMN: Interactivity Panel — desktop only */}
+          <div className="hidden md:block lg:col-span-4 xl:col-span-5">
+            <div className="bg-white border border-slate-100 rounded-2xl flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[580px] lg:shadow-sm lg:overflow-hidden">
+              <div className="grid grid-cols-4 border-b border-gray-100 bg-slate-50/50 p-1 lg:p-1">
                 {[
                   { key: 'transcript', icon: <List className="h-4 w-4 mb-1 text-slate-500" />, label: '字幕', badge: video.subtitles.length, badgeStyle: 'text-indigo-500 bg-indigo-50 font-mono' },
                   { key: 'shadow', icon: <Mic className="h-4 w-4 mb-1 text-slate-500" />, label: '跟读', badge: '评测', badgeStyle: 'text-amber-600 bg-amber-50' },
@@ -469,15 +498,15 @@ export default function VideoDetail() {
                   { key: 'translate', icon: <Languages className="h-4 w-4 mb-1 text-slate-500" />, label: '中译英', badge: '拼写', badgeStyle: 'text-purple-600 bg-purple-50' },
                 ].map(tab => (
                   <button key={tab.key} onClick={() => setSidebarTab(tab.key)}
-                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all ${sidebarTab === tab.key ? 'bg-white text-indigo-600 shadow-xs border border-indigo-50/30 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'}`}>
+                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all lg:py-2 lg:px-1 ${sidebarTab === tab.key ? 'bg-white text-indigo-600 shadow-xs border border-indigo-50/30 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'}`}>
                     {tab.icon}
-                    <span className="text-[10px]">{tab.label}</span>
+                    <span className="text-[10px] lg:text-[10px]">{tab.label}</span>
                     <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full mt-1 ${tab.badgeStyle}`}>{tab.badge}</span>
                   </button>
                 ))}
               </div>
 
-              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth" style={{ scrollbarWidth: 'thin' }}>
+              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-2 py-3 space-y-3 scroll-smooth lg:p-4 lg:space-y-4 pb-20 md:pb-5" style={{ scrollbarWidth: 'thin' }}>
 
                 {/* Tab: Transcript */}
                 {sidebarTab === 'transcript' && video.subtitles.map((sub, idx) => {
@@ -486,7 +515,7 @@ export default function VideoDetail() {
                   return (
                     <div key={idx} id={`sub-item-${idx}`}
                       onClick={() => jumpToSubtitle(sub.startTime)}
-                      className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col space-y-3 ${isActive ? 'bg-indigo-50/40 border-indigo-200 shadow-sm ring-1 ring-indigo-200/20 scale-[1.01] border-l-4 border-l-indigo-600' : 'bg-white hover:bg-slate-50 border-slate-100 shadow-xs'}`}>
+                      className={`p-4 lg:p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col space-y-3 ${isActive ? 'bg-indigo-50/40 border-indigo-200 shadow-sm ring-1 ring-indigo-200/20 scale-[1.01] border-l-4 border-l-indigo-600' : 'bg-white hover:bg-slate-50 border-slate-100 shadow-xs'}`}>
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full font-mono">{formatTime(sub.startTime)}</span>
                         <button onClick={(e) => toggleBookmark(e, idx)} className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-slate-100/50 transition-all cursor-pointer" title={isBookmarked ? '取消收藏' : '收藏句子'}>
@@ -495,14 +524,14 @@ export default function VideoDetail() {
                       </div>
                       <div className="flex-1">
                         {(subtitleMode === 'bilingual' || subtitleMode === 'english') && (
-                          <p className={`text-sm md:text-base leading-relaxed font-sans tracking-wide ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-800 font-bold'}`}>
+                          <p className={`text-[15px] md:text-base leading-relaxed font-sans tracking-wide ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-800 font-bold'}`}>
                             {sub.textEn.split(' ').map((w, wi) => (
                               <span key={wi} className="cursor-pointer rounded-sm hover:text-indigo-600 hover:bg-indigo-50 px-0.5" onClick={e => handleWordClick(w, e)}>{w} </span>
                             ))}
                           </p>
                         )}
                         {(subtitleMode === 'bilingual' || subtitleMode === 'chinese') && (
-                          <p className={`text-xs md:text-sm mt-1.5 font-sans leading-relaxed ${isActive ? 'text-indigo-600 font-semibold' : 'text-slate-400 font-medium'}`}>{sub.textCn}</p>
+                          <p className={`text-[13px] md:text-sm mt-2 font-sans leading-relaxed ${isActive ? 'text-indigo-600 font-semibold' : 'text-slate-400 font-medium'}`}>{sub.textCn}</p>
                         )}
                         {sub.highlightWords && sub.highlightWords.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -676,8 +705,20 @@ export default function VideoDetail() {
           </div>
         </div>
 
+        {/* Current Subtitle Display — mobile only */}
+        {currentSub && (
+          <div className="md:hidden bg-white border border-slate-100 rounded-xl p-3.5 shadow-xs">
+            <p className="text-[15px] font-bold text-slate-800 leading-relaxed">
+              {(subtitleMode === 'bilingual' || subtitleMode === 'english') && currentSub.textEn}
+            </p>
+            {(subtitleMode === 'bilingual' || subtitleMode === 'chinese') && (
+              <p className="text-[13px] text-indigo-500 font-semibold mt-1.5">{currentSub.textCn}</p>
+            )}
+          </div>
+        )}
+
         {/* Video Info Card */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs">
+        <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-xs mt-4 md:mt-0">
           <h3 className="text-sm font-extrabold text-slate-800 mb-4">视频信息</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-3">
             <div className="flex flex-col gap-1">
@@ -698,34 +739,182 @@ export default function VideoDetail() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (exact match with reference PracticePanel.tsx mobile) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 px-2 py-2.5 flex items-center justify-around md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-safe">
-        <button onClick={cycleSubtitleMode} className="flex flex-col items-center justify-center w-16 cursor-pointer active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100/30 flex items-center justify-center text-indigo-600 font-extrabold text-base shadow-2xs">{subtitleModeChar()}</div>
-          <span className="text-[10px] font-extrabold text-slate-500 mt-1">{subtitleModeLabel()}</span>
-        </button>
-        <button onClick={cycleSpeed} className="flex flex-col items-center justify-center w-16 cursor-pointer active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 font-black text-sm shadow-2xs font-mono">{playbackRate}x</div>
-          <span className="text-[10px] font-extrabold text-slate-500 mt-1">倍速</span>
-        </button>
-        <button onClick={togglePlay}
-          className="flex items-center justify-center w-14 h-14 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-full shadow-[0_4px_14px_rgba(79,70,229,0.35)] transition-all cursor-pointer relative -top-3">
-          {playing ? <Pause className="h-6 w-6 fill-white text-white" /> : <Play className="h-6 w-6 fill-white text-white ml-1" />}
-        </button>
-        <button onClick={() => { setIsLooping(!isLooping); setLoopMode(isLooping ? 'off' : 'sentence') }}
-          className="flex flex-col items-center justify-center w-16 cursor-pointer active:scale-95 transition-transform">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all shadow-2xs ${isLooping ? 'bg-indigo-50 border-indigo-100/40 text-indigo-600' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-            <Repeat className={`h-5 w-5 stroke-[2.2] ${isLooping ? 'animate-spin text-indigo-600' : ''}`} />
-          </div>
-          <span className="text-[10px] font-extrabold text-slate-500 mt-1">{isLooping ? '循环中' : '循环'}</span>
-        </button>
-        <button onClick={() => setIsWordCardOpen(!isWordCardOpen)}
-          className="flex flex-col items-center justify-center w-16 cursor-pointer active:scale-95 transition-transform">
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100/20 flex items-center justify-center text-amber-600 shadow-2xs">
-            <BookOpen className="h-5 w-5 stroke-[2.2]" />
-          </div>
-          <span className="text-[10px] font-extrabold text-slate-500 mt-1">词卡</span>
-        </button>
+      {/* Mobile Bottom Tab Bar — reference shadowtalk.top */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/60 flex items-center justify-around md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}>
+        {[
+          { key: 'transcript', icon: <List className="h-5 w-5" />, label: '字幕', count: video.subtitles.length },
+          { key: 'words', icon: <BookOpen className="h-5 w-5" />, label: '单词', count: derivedData.keywords.length },
+          { key: 'shadow', icon: <Mic className="h-5 w-5" />, label: '跟读' },
+          { key: 'translate', icon: <Languages className="h-5 w-5" />, label: '中译英' },
+        ].map(tab => {
+          const isActive = sidebarTab === tab.key
+          return (
+            <button key={tab.key}
+              onClick={() => {
+                if (sidebarTab === tab.key) {
+                  // Toggle bottom sheet
+                  const sheet = document.getElementById('mobile-bottom-sheet')
+                  if (sheet) sheet.classList.toggle('translate-y-full')
+                } else {
+                  setSidebarTab(tab.key)
+                  const sheet = document.getElementById('mobile-bottom-sheet')
+                  if (sheet) sheet.classList.remove('translate-y-full')
+                }
+              }}
+              className={`flex flex-col items-center justify-center py-1.5 px-2 min-w-[52px] cursor-pointer transition-all active:scale-95 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`}>
+              <div className={`${isActive ? '' : 'opacity-70'}`}>{tab.icon}</div>
+              <span className={`text-[10px] font-bold mt-0.5 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`}>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span className={`text-[9px] font-semibold px-1 rounded-full mt-0.5 ${isActive ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-100 text-slate-400'}`}>{tab.count}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Mobile Bottom Sheet Panel */}
+      <div id="mobile-bottom-sheet"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl transition-transform duration-300 ease-out translate-y-full md:hidden flex flex-col"
+        style={{ maxHeight: '70vh', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        {/* Drag handle + close */}
+        <div className="flex items-center justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-slate-200 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+          <span className="text-sm font-extrabold text-slate-700">
+            {sidebarTab === 'transcript' ? '字幕列表' : sidebarTab === 'words' ? '重点词汇' : sidebarTab === 'shadow' ? '跟读评测' : '中译英拼句'}
+          </span>
+          <button onClick={() => {
+            const sheet = document.getElementById('mobile-bottom-sheet')
+            if (sheet) sheet.classList.add('translate-y-full')
+          }}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer transition-all">
+            <X className="h-4.5 w-4.5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
+          {/* Transcript */}
+          {sidebarTab === 'transcript' && video.subtitles.map((sub, idx) => {
+            const isActive = idx === activeSubIndex
+            return (
+              <div key={idx}
+                onClick={() => { jumpToSubtitle(sub.startTime); const sheet = document.getElementById('mobile-bottom-sheet'); if (sheet) sheet.classList.add('translate-y-full') }}
+                className={`p-3 rounded-xl border mb-2 transition-all cursor-pointer ${isActive ? 'bg-indigo-50/40 border-indigo-200 shadow-sm border-l-3 border-l-indigo-600' : 'bg-white hover:bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-mono">{formatTime(sub.startTime)}</span>
+                </div>
+                <p className={`text-[14px] leading-relaxed ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-700 font-semibold'}`}>
+                  {sub.textEn}
+                </p>
+                <p className={`text-[12px] mt-1 ${isActive ? 'text-indigo-600 font-semibold' : 'text-slate-400 font-medium'}`}>
+                  {sub.textCn}
+                </p>
+              </div>
+            )
+          })}
+
+          {/* Words */}
+          {sidebarTab === 'words' && (
+            derivedData.keywords.length > 0 ? derivedData.keywords.map((kw, i) => (
+              <div key={i}
+                onClick={() => { jumpToSubtitle(kw.times[0]); const sheet = document.getElementById('mobile-bottom-sheet'); if (sheet) sheet.classList.add('translate-y-full') }}
+                className="p-3.5 border rounded-2xl bg-white border-slate-100 hover:border-slate-200 transition-all cursor-pointer mb-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-slate-800">{kw.word}</h4>
+                    <p className="text-[11px] font-semibold text-slate-400 mt-0.5">出现 {kw.count} 次 · {formatTime(kw.times[0])}</p>
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); const synth = window.speechSynthesis; if (synth) { const u = new SpeechSynthesisUtterance(kw.word); u.lang = 'en-US'; u.rate = 0.95; synth.speak(u) } }}
+                    className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-lg cursor-pointer">
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )) : <div className="text-center py-8 text-xs text-slate-400">暂无重点词汇</div>
+          )}
+
+          {/* Shadowing */}
+          {sidebarTab === 'shadow' && (
+            <div className="space-y-3">
+              {currentSub && (
+                <div className="bg-white border border-slate-100 p-3.5 rounded-xl text-sm font-semibold text-slate-700 leading-relaxed">
+                  {currentSub.textEn}
+                  <p className="text-xs text-slate-400 mt-1.5">{currentSub.textCn}</p>
+                </div>
+              )}
+              {isRecording ? (
+                <div className="flex flex-col items-center py-6 space-y-3">
+                  <div className="flex items-end justify-center space-x-1 h-8">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(bar => (
+                      <div key={bar} style={{ height: `${Math.floor(Math.random() * 24) + 4}px` }} className="w-1 bg-indigo-500 rounded-full animate-pulse transition-all duration-100" />
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-400">正在录音... {recordingSeconds}s</span>
+                  <button onClick={stopRecording} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer">结束录音</button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-6 space-y-3">
+                  <button onClick={startRecording} className="h-14 w-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all">
+                    <Mic className="h-6 w-6" />
+                  </button>
+                  <span className="text-xs font-bold text-slate-500">点击麦克风开始跟读</span>
+                </div>
+              )}
+              {shadowResult && (
+                <div className="p-3 bg-indigo-50/20 border border-indigo-100/30 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-500">评测得分</span>
+                    <span className="text-sm font-extrabold text-indigo-600 font-mono">{shadowResult.score}分</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 text-xs font-bold">
+                    {shadowResult.words.map((item, i) => (
+                      <span key={i} className={`px-1 rounded ${item.status === 'perfect' ? 'text-emerald-600 bg-emerald-50' : item.status === 'good' ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50'}`}>{item.text}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Translate */}
+          {sidebarTab === 'translate' && (
+            <div className="space-y-3">
+              {currentSub ? (
+                <>
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-xs font-bold text-slate-600">
+                    中文：<span className="text-slate-800">{currentSub.textCn}</span>
+                  </div>
+                  <div className="bg-white border border-dashed border-slate-300 min-h-14 p-3 rounded-xl flex flex-wrap gap-1.5 items-center">
+                    {selectedTranslateChips.length > 0 ? selectedTranslateChips.map((word, idx) => (
+                      <span key={idx} onClick={() => handleRemoveChip(word, idx)}
+                        className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg cursor-pointer text-xs font-bold">×{word}</span>
+                    )) : <span className="text-xs text-slate-400 italic">点击下方词卡拼写英文原句</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 justify-center p-2.5 bg-slate-50/40 rounded-xl">
+                    {scrambledChips.map((word, index) => (
+                      <button key={index} onClick={() => handleChipClick(word, index)}
+                        className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold cursor-pointer">{word}</button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleVerifyTranslation} disabled={selectedTranslateChips.length === 0}
+                      className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-lg cursor-pointer text-center">校验拼写</button>
+                    <button onClick={() => currentSub && setupTranslateMode(currentSub)}
+                      className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg cursor-pointer"><RotateCcw className="h-4 w-4" /></button>
+                  </div>
+                  {isTranslateCorrect !== null && (
+                    <div className={`flex items-start gap-2 p-3 rounded-xl border text-xs font-semibold ${isTranslateCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`}>
+                      {isTranslateCorrect ? <><CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /><span>完美！</span></> : <><AlertCircle className="h-4 w-4 text-rose-500 shrink-0" /><span>词序不对，再试试</span></>}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-xs text-slate-400">请选择句子进行中译英练习</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Word Popup */}
@@ -751,9 +940,9 @@ export default function VideoDetail() {
 
       {/* Smart Word Cards Drawer */}
       {isWordCardOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex justify-end animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex flex-col justify-end md:flex-row md:justify-end animate-fade-in">
           <div className="flex-1 cursor-pointer" onClick={() => setIsWordCardOpen(false)} />
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col p-6 overflow-hidden relative">
+          <div className="w-full md:max-w-md bg-white h-[85vh] md:h-full shadow-2xl flex flex-col p-6 overflow-hidden relative rounded-t-2xl md:rounded-none">
             <button onClick={() => setIsWordCardOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-1.5 bg-slate-50 border border-slate-100 rounded-full cursor-pointer transition-colors">
               <X className="h-4 w-4" />
