@@ -9,6 +9,9 @@ export default function App() {
   const location = useLocation()
   const { user, isGuest, logout } = useAuth()
 
+  // Hide navbar on video detail pages (mobile uses full-screen layout)
+  const isVideoPage = location.pathname.startsWith('/video/')
+
   useEffect(() => {
     fetch('/data/meta.json')
       .then(r => r.json())
@@ -18,7 +21,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <nav className="navbar">
+      <nav className={`navbar ${isVideoPage ? 'md:block hidden' : ''}`}>
         <div className="nav-inner">
           <NavLink to="/" className="nav-brand">
             <span className="brand-icon">🎬</span>
@@ -70,7 +73,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="main-content">
+      <main className={`main-content ${isVideoPage ? 'md:p-6 p-0' : ''}`}>
         <Outlet context={{ meta }} />
       </main>
     </div>
