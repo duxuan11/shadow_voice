@@ -410,7 +410,7 @@ git commit -m "feat: 口语评测结果解析纯函数 parseResult + 单测"
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { parseResult } from '../utils/aliyunResult'
-import { Mic, Square, Loader2, Volume2, Play, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mic, Square, Loader2, Volume2, ChevronDown } from 'lucide-react'
 
 // engine.js 动态加载（模块级单例，多个挂载点共享一次加载）
 let engineScriptPromise = null
