@@ -36,7 +36,7 @@ export default function VideoDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const videoRef = useRef(null)
-  const { authFetch } = useAuth()
+  const { authFetch, isGuest } = useAuth()
 
   // Responsive: only render one layout at a time
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -97,6 +97,7 @@ export default function VideoDetail() {
   const mobileScrollRef = useRef(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const playerContainerRef = useRef(null)
+  const lastProgressReportRef = useRef(0)
 
   // ── Data loading ──
   useEffect(() => {
@@ -117,6 +118,25 @@ export default function VideoDetail() {
   }, [id])
 
   useEffect(() => { authFetch('/vocab').then(r => r.json()).then(d => setVocabulary(d.vocabulary || [])).catch(() => {}) }, [id, authFetch])
+
+  // ── Progress: load saved position (skip for guests) ──
+  useEffect(() => {
+    if (isGuest || !id) return
+    authFetch(`/progress/${id}`).then(r => r.json()).then(d => {
+      if (d.progress && !d.progress.completed && d.progress.currentTime > 5) {
+        // Resume from last position after video metadata loads
+        const resumeTime = d.progress.currentTime
+        const vid = videoRef.current
+        if (vid && vid.duration) {
+          vid.currentTime = resumeTime
+          setCurrentTime(resumeTime)
+        } else {
+          // Video not ready yet — store and apply after loadedmetadata
+          sessionStorage.setItem(`shadow_voice_resume_${id}`, resumeTime)
+        }
+      }
+    }).catch(() => {})
+  }, [id, isGuest, authFetch])
 
   // ── Cloze setup ──
   const setupClozeMode = useCallback((sub) => {
@@ -226,19 +246,30 @@ export default function VideoDetail() {
   // ── Active subtitle tracking ──
   useEffect(() => { if (!video || !video.subtitles) return; setActiveSubIndex(video.subtitles.findIndex(s => currentTime >= s.startTime && currentTime <= s.endTime)) }, [currentTime, video])
 
-  // Auto-scroll to active subtitle (desktop)
+  // Auto-scroll to active subtitle (desktop) — center active in viewport
   useEffect(() => {
     if (sidebarTab !== 'transcript' || activeSubIndex < 0 || !scrollContainerRef.current) return
     const el = scrollContainerRef.current.querySelector(`#sub-item-${activeSubIndex}`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [activeSubIndex, sidebarTab])
 
-  // Auto-scroll to active subtitle (mobile)
+  // Auto-scroll to active subtitle (mobile) — center active + trigger on play
   useEffect(() => {
     if (mobileTab !== 'transcript' || activeSubIndex < 0 || !mobileScrollRef.current) return
     const el = mobileScrollRef.current.querySelector(`[data-mobile-sub-index="${activeSubIndex}"]`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [activeSubIndex, mobileTab])
+    if (el) {
+      const container = mobileScrollRef.current
+      const elTop = el.offsetTop
+      const elBottom = elTop + el.offsetHeight
+      const viewTop = container.scrollTop
+      const viewBottom = viewTop + container.clientHeight
+      // Only scroll if element is NOT fully visible in the viewport
+      const isVisible = elTop >= viewTop && elBottom <= viewBottom - 80 // 80px margin for bottom bar
+      if (!isVisible) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [activeSubIndex, mobileTab, playing])
 
   // ── Loop ──
   const [loopStart, setLoopStart] = useState(null); const [loopEnd, setLoopEnd] = useState(null)
@@ -249,11 +280,38 @@ export default function VideoDetail() {
     const vid = videoRef.current; if (!vid) return; const t = vid.currentTime; setCurrentTime(t)
     if (isLooping && currentSub && t >= currentSub.endTime) { vid.currentTime = currentSub.startTime; setCurrentTime(currentSub.startTime) }
     if (loopMode === 'sentence' && loopEnd && t >= loopEnd) vid.currentTime = loopStart || 0
+    // Throttled progress report (every 5s, skip guests)
+    if (!isGuest && t > 0 && t - lastProgressReportRef.current >= 5) {
+      lastProgressReportRef.current = t
+      authFetch(`/progress/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ currentTime: t, duration: vid.duration || 0 })
+      }).catch(() => {})
+    }
   }
-  const handleLoadedMetadata = () => { const vid = videoRef.current; if (vid) setDuration(vid.duration) }
+  const handleLoadedMetadata = () => {
+    const vid = videoRef.current; if (!vid) return
+    setDuration(vid.duration)
+    // Resume from saved position if available
+    const savedTime = sessionStorage.getItem(`shadow_voice_resume_${id}`)
+    if (savedTime) {
+      const t = parseFloat(savedTime)
+      vid.currentTime = t
+      setCurrentTime(t)
+      sessionStorage.removeItem(`shadow_voice_resume_${id}`)
+    }
+  }
   const togglePlay = useCallback(() => { const vid = videoRef.current; if (!vid) return; vid.paused ? vid.play() : vid.pause() })
   const handleSeekChange = (e) => { const t = parseFloat(e.target.value); const vid = videoRef.current; if (vid) { vid.currentTime = t; setCurrentTime(t) } }
   const jumpToSubtitle = (st) => { const vid = videoRef.current; if (vid) { vid.currentTime = st; vid.play(); setPlaying(true) } }
+  // Navigate to sentence by index — sets video time + activeSubIndex directly (avoids floating-point matching)
+  const navigateToSubtitle = (idx) => {
+    if (!video?.subtitles || idx < 0 || idx >= video.subtitles.length) return
+    const st = video.subtitles[idx].startTime
+    const vid = videoRef.current; if (vid) vid.currentTime = st
+    setCurrentTime(st)
+    setActiveSubIndex(idx)
+  }
   const toggleMute = () => { const vid = videoRef.current; if (vid) { setMuted(!muted); vid.muted = !muted } }
   const handleVolumeChange = (e) => { const v = parseFloat(e.target.value); setVolume(v); if (v > 0) setMuted(false); const vid = videoRef.current; if (vid) vid.volume = v }
   const toggleFullscreen = () => {
@@ -266,8 +324,8 @@ export default function VideoDetail() {
   const cycleSpeed = () => { const s = playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : playbackRate === 1.5 ? 0.75 : 1; changeSpeed(s) }
   const goToNextVideo = () => { if (!allVideos.length) return; const i = allVideos.findIndex(v => v.id === id); if (i >= 0 && i < allVideos.length - 1) navigate(`/video/${allVideos[i + 1].id}`) }
   const handleVideoEnded = () => { setPlaying(false); const vid = videoRef.current; if (loopMode === 'all' && vid) vid.play(); else goToNextVideo() }
-  const goPrevSentence = () => { if (!video?.subtitles) return; const idx = Math.max(0, activeSubIndex - 1); jumpToSubtitle(video.subtitles[idx].startTime) }
-  const goNextSentence = () => { if (!video?.subtitles) return; const idx = Math.min(video.subtitles.length - 1, activeSubIndex + 1); jumpToSubtitle(video.subtitles[idx].startTime) }
+  const goPrevSentence = () => { navigateToSubtitle(activeSubIndex - 1) }
+  const goNextSentence = () => { navigateToSubtitle(activeSubIndex + 1) }
   const cycleLoop = () => { const m = ['off', 'sentence', 'all']; const n = m[(m.indexOf(loopMode) + 1) % 3]; setLoopMode(n); setIsLooping(n !== 'off'); const vid = videoRef.current; if (vid) vid.loop = n === 'all'; if (n !== 'sentence') { setLoopStart(null); setLoopEnd(null) }; setShowLoopPicker(false) }
   useEffect(() => { const vid = videoRef.current; if (!vid) return; vid.volume = muted ? 0 : volume; vid.playbackRate = playbackRate }, [volume, muted, playbackRate])
 
@@ -362,7 +420,7 @@ export default function VideoDetail() {
     return (
       <>
         {(subtitleMode === 'bilingual' || subtitleMode === 'english' || subtitleMode === 'blind') && (
-          <p className={`${isMobileView ? 'text-[15px]' : 'text-[15px] md:text-base'} leading-relaxed font-sans tracking-wide ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-800 font-bold'}`}>
+          <p className={`${isMobileView ? 'text-[15px]' : 'text-[15px] md:text-base'} leading-relaxed font-['Roboto',sans-serif] tracking-wide ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-800 font-bold'}`}>
             {isMobileView ? sub.textEn : sub.textEn.split(' ').map((w, wi) => (
               <span key={wi} className="cursor-pointer rounded-sm hover:text-indigo-600 hover:bg-indigo-50 px-0.5" onClick={e => handleWordClick(w, e)}>{w} </span>
             ))}
@@ -440,22 +498,26 @@ export default function VideoDetail() {
   // ───────────────────────────────────────────
   // Render: Practice Mode Navigation Header
   // ───────────────────────────────────────────
-  const renderPracticeNavHeader = (label, subLabel) => (
+  const renderPracticeNavHeader = (label, subLabel) => {
+    const atFirst = activeSubIndex <= 0
+    const atLast = !video?.subtitles || activeSubIndex >= video.subtitles.length - 1
+    return (
     <div className="flex items-center justify-between px-1 py-2 border-b border-slate-100 mb-3">
-      <button onClick={goPrevSentence}
-        className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-lg text-xs font-bold text-slate-600 transition-all cursor-pointer active:scale-95">
+      <button onClick={goPrevSentence} disabled={atFirst}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${atFirst ? 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed' : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-slate-600 cursor-pointer'}`}>
         <ChevronLeft className="h-3.5 w-3.5 stroke-[2.5]" />上一句
       </button>
       <div className="text-center">
         <span className="text-xs font-extrabold text-slate-700">{label}</span>
         {subLabel && <span className="block text-[10px] text-slate-400 font-medium">{subLabel}</span>}
+        <span className="block text-[9px] text-slate-400 font-mono mt-0.5">{activeSubIndex >= 0 ? `${activeSubIndex + 1} / ${video?.subtitles?.length || 0}` : ''}</span>
       </div>
-      <button onClick={goNextSentence}
-        className="flex items-center gap-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-lg text-xs font-bold text-slate-600 transition-all cursor-pointer active:scale-95">
+      <button onClick={goNextSentence} disabled={atLast}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${atLast ? 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed' : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-slate-600 cursor-pointer'}`}>
         下一句<ChevronRight className="h-3.5 w-3.5 stroke-[2.5]" />
       </button>
     </div>
-  )
+  )}
 
   // ───────────────────────────────────────────
   // RENDER
@@ -466,7 +528,7 @@ export default function VideoDetail() {
           MOBILE LAYOUT (full-screen app-like)
           ══════════════════════════════════════════ */}
       {isMobile && (
-      <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+      <div className="flex flex-col h-screen bg-white overflow-hidden">
 
         {/* ── Mobile Header ── */}
         <div className="flex items-center justify-between bg-white/95 backdrop-blur-md px-3 py-2 border-b border-slate-100 shrink-0 z-10"
@@ -512,8 +574,8 @@ export default function VideoDetail() {
         </div>
 
         {/* ── Mobile Scrollable Content ── */}
-        <div ref={mobileScrollRef} className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-white px-3 py-3"
-          style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div ref={mobileScrollRef} className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-slate-50 to-slate-100/80 px-3 py-3 pb-safe"
+          style={{ paddingBottom: '5rem' }}>
 
           {/* TRANSCRIPT TAB */}
           {mobileTab === 'transcript' && video.subtitles.map((sub, idx) => {
@@ -534,9 +596,9 @@ export default function VideoDetail() {
                       {isActive ? (
                         <>
                           <span className="inline-flex items-end gap-[2px] h-[11px]" aria-label="正在播放">
-                            <span className="w-[3px] bg-indigo-500 rounded-full animate-pulse" style={{ height: '6px', animationDelay: '0ms' }} />
-                            <span className="w-[3px] bg-indigo-500 rounded-full animate-pulse" style={{ height: '10px', animationDelay: '150ms' }} />
-                            <span className="w-[3px] bg-indigo-500 rounded-full animate-pulse" style={{ height: '4px', animationDelay: '300ms' }} />
+                            <span className="playing-bar" style={{ animationDelay: '0ms' }} />
+                            <span className="playing-bar" style={{ animationDelay: '150ms' }} />
+                            <span className="playing-bar" style={{ animationDelay: '300ms' }} />
                           </span>
                           正在播放
                         </>
@@ -715,8 +777,7 @@ export default function VideoDetail() {
         </div>
 
         {/* ── Mobile Bottom Bar (fixed) ── */}
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/60 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] shrink-0"
-          style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/60 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] shrink-0 pb-safe">
           <div className="flex items-center justify-between px-3 py-1.5">
             {/* Subtitle mode toggle */}
             <button onClick={(e) => { e.stopPropagation(); cycleSubtitleMode() }}
@@ -747,14 +808,16 @@ export default function VideoDetail() {
 
             {/* Prev / Play / Next */}
             <div className="flex items-center gap-3">
-              <button onClick={goPrevSentence} className="p-2 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer active:scale-90">
+              <button onClick={goPrevSentence} disabled={activeSubIndex <= 0}
+                className={`p-2 transition-colors active:scale-90 ${activeSubIndex <= 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600 cursor-pointer'}`}>
                 <ChevronLeft className="h-6 w-6 stroke-[2.5]" />
               </button>
               <button onClick={togglePlay}
                 className="w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg cursor-pointer active:scale-95 transition-all hover:bg-indigo-700">
                 {playing ? <Pause className="h-7 w-7 fill-white" /> : <Play className="h-7 w-7 fill-white ml-1" />}
               </button>
-              <button onClick={goNextSentence} className="p-2 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer active:scale-90">
+              <button onClick={goNextSentence} disabled={!video?.subtitles || activeSubIndex >= video.subtitles.length - 1}
+                className={`p-2 transition-colors active:scale-90 ${(!video?.subtitles || activeSubIndex >= video.subtitles.length - 1) ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600 cursor-pointer'}`}>
                 <ChevronRight className="h-6 w-6 stroke-[2.5]" />
               </button>
             </div>
@@ -803,8 +866,11 @@ export default function VideoDetail() {
                   {wordPopup.cn && <span className="text-indigo-100 text-sm">{wordPopup.cn}</span>}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => speakWord(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer">
+                  <button onClick={() => speakWord(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer" title="发音">
                     <Volume2 className="h-5 w-5" />
+                  </button>
+                  <button onClick={() => pushToVocab(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition cursor-pointer" title={vocabulary.some(v => v.word.toLowerCase() === wordPopup.word.toLowerCase()) ? '已收藏' : '收藏单词'}>
+                    <Heart className={`h-5 w-5 ${vocabulary.some(v => v.word.toLowerCase() === wordPopup.word.toLowerCase()) ? 'text-red-300 fill-red-300' : 'text-white'}`} />
                   </button>
                   <button onClick={() => setWordPopup(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer">
                     <X className="h-5 w-5" />
@@ -906,14 +972,16 @@ export default function VideoDetail() {
                   <div className="flex flex-col space-y-1.5 items-center">
                     <span className="text-[10px] font-bold text-slate-400">视频播放</span>
                     <div className="flex items-center space-x-3 bg-slate-50 p-1 rounded-xl border border-slate-200/40">
-                      <button onClick={goPrevSentence} className="p-2 rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 hover:shadow-xs transition-all cursor-pointer" title="上一句">
+                      <button onClick={goPrevSentence} disabled={activeSubIndex <= 0}
+                        className={`p-2 rounded-lg transition-all ${activeSubIndex <= 0 ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-white text-slate-600 hover:text-indigo-600 hover:shadow-xs cursor-pointer'}`} title="上一句">
                         <ChevronLeft className="h-4 w-4 stroke-[2.5]" />
                       </button>
                       <button onClick={togglePlay} title={playing ? '暂停' : '播放'}
                         className="flex items-center justify-center h-9 w-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95">
                         {playing ? <Pause className="h-4.5 w-4.5 fill-white text-white" /> : <Play className="h-4.5 w-4.5 fill-white text-white ml-0.5" />}
                       </button>
-                      <button onClick={goNextSentence} className="p-2 rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 hover:shadow-xs transition-all cursor-pointer" title="下一句">
+                      <button onClick={goNextSentence} disabled={!video?.subtitles || activeSubIndex >= video.subtitles.length - 1}
+                        className={`p-2 rounded-lg transition-all ${(!video?.subtitles || activeSubIndex >= video.subtitles.length - 1) ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-white text-slate-600 hover:text-indigo-600 hover:shadow-xs cursor-pointer'}`} title="下一句">
                         <ChevronRight className="h-4 w-4 stroke-[2.5]" />
                       </button>
                     </div>

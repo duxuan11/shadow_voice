@@ -50,6 +50,17 @@ function initSchema() {
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(user_id, word)
   )`)
+
+  db.run(`CREATE TABLE IF NOT EXISTS video_progress (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id     TEXT NOT NULL,
+    current_time REAL DEFAULT 0,
+    duration     REAL DEFAULT 0,
+    completed    INTEGER DEFAULT 0,
+    updated_at   TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id)
+  )`)
 }
 
 // sql.js doesn't auto-save — call this after writes
