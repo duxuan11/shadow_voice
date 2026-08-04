@@ -43,6 +43,9 @@ router.post('/authorize', authMiddleware, async (req, res) => {
   if (cached && cached.expiresAt - 60 * 1000 > Date.now()) {
     return res.json({ warrantId: cached.warrantId, expiresAt: cached.expiresAt, applicationId: APP_ID })
   }
+  if (cached) {
+    cache.delete(userId)
+  }
 
   const timestamp = String(Math.floor(Date.now() / 1000))
   const clientIp = req.ip || req.socket.remoteAddress || ''
@@ -59,7 +62,11 @@ router.post('/authorize', authMiddleware, async (req, res) => {
 
   let resp
   try {
-    resp = await fetch(AUTH_URL, { method: 'POST', body: form.toString() })
+    resp = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    })
   } catch {
     return res.status(502).json({ error: '阿里云授权服务不可达' })
   }

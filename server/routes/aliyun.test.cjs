@@ -18,3 +18,15 @@ test('buildSign 对相同参数幂等', () => {
   const p = { appid: 'a1', timestamp: '123', userId: 'u1', clientIp: '1.2.3.4', secret: 's1' }
   assert.equal(buildSign(p), buildSign(p))
 })
+
+test('buildSign 值不做 URL 编码（冒号原样参与签名）', () => {
+  const sign = buildSign({
+    appid: 'a1',
+    timestamp: '123',
+    userId: 'u1',
+    clientIp: '::ffff:1.2.3.4',
+    secret: 's1',
+  })
+  // 预计算期望值（未编码 key=value 排序拼接后 MD5）
+  assert.equal(sign, 'aa79ded4046cec758920aac4e4a73008')
+})
