@@ -297,6 +297,17 @@ test('对象入参与字符串入参等价', () => {
   const asStr = parseResult(sample)
   assert.deepEqual(asObj, asStr)
 })
+
+test('audioUrl 缺失时按 applicationId/recordId 拼接（SDK 约定）', () => {
+  const r = parseResult(JSON.stringify({
+    applicationId: 'a148',
+    recordId: '11ec05b74ec73b88a52ea1484261e844',
+    result: { details: [] },
+  }))
+  assert.equal(r.audioUrl, 'https://files.cloud.ssapi.cn/a148/11ec05b74ec73b88a52ea1484261e844.mp3')
+  assert.equal(r.words.length, 0)
+  assert.equal(r.overall, null)
+})
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -356,7 +367,13 @@ export function parseResult(msg) {
     },
     liaison: { expected: liaisonWords.length, ok: liaisonWords.filter((w) => w.liaison.score === 1).length },
     words,
-    audioUrl: (raw && raw.audioUrl) || null,
+    // audioUrl 优先取响应字段；缺失时按官方 SDK 约定拼接
+    // https://files.cloud.ssapi.cn/<applicationId>/<recordId>.mp3（SDK 文档 2873513）
+    audioUrl:
+      (raw && raw.audioUrl) ||
+      (raw && raw.applicationId && raw.recordId
+        ? `https://files.cloud.ssapi.cn/${raw.applicationId}/${raw.recordId}.mp3`
+        : null),
     tipId: (r.info && r.info.tipId) || 0,
   }
 }
@@ -554,7 +571,8 @@ export default function ShadowingEvaluator({ refText }) {
       clearTimeout(timerRef.current)
       clearInterval(secondsRef.current)
       if (engineRef.current) {
-        try { engineRef.current.stopRecord() } catch {}
+        // cancelRecord：取消录音且不返回结果，避免卸载后仍触发回调
+        try { engineRef.current.cancelRecord() } catch { try { engineRef.current.stopRecord() } catch {} }
         engineRef.current = null
       }
     }
