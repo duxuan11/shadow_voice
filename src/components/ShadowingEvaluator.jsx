@@ -102,6 +102,7 @@ export default function ShadowingEvaluator({ refText }) {
       },
       engineBackResultDone: (msg) => {
         try {
+          clearTimers()
           setResult(parseResult(msg))
           setPhaseSafe('result')
         } catch {
@@ -180,6 +181,9 @@ export default function ShadowingEvaluator({ refText }) {
 
   // ── 卸载清理 ──
   useEffect(() => {
+    // StrictMode 下同一实例会 mount → 模拟 unmount → remount，ref 保留；
+    // 每次 effect 运行时重新武装，避免 mountedRef 永远为 false 导致 start() 静默失效
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
       clearTimeout(timerRef.current)
