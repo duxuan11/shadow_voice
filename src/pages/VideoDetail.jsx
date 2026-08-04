@@ -375,15 +375,39 @@ export default function VideoDetail() {
   }
   const exportTxt = () => { if (!video) return; let t = `${video.title}\n${'='.repeat(40)}\n\n`; video.subtitles.forEach(s => { t += `[${formatTime(s.startTime)}]\n`; if (subtitleMode !== 'chinese') t += `${s.textEn}\n`; if (subtitleMode !== 'english') t += `${s.textCn}\n`; t += '\n' }); const b = new Blob([t], { type: 'text/plain' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `${video.title} - 字幕.txt`; a.click(); URL.revokeObjectURL(u) }
 
-  // ── TTS ──
-  const speakActiveSentence = () => {
-    if (!currentSub) return
-    const synth = window.speechSynthesis; if (!synth) return
-    const u = new SpeechSynthesisUtterance(currentSub.textEn); u.lang = 'en-US'; u.rate = 0.9; synth.speak(u)
-  }
+  // ── TTS（仅单词语音；句子播放走原声，见 playOriginalSentence）──
   const speakWord = (word) => {
     const synth = window.speechSynthesis; if (!synth) return
     const u = new SpeechSynthesisUtterance(word); u.lang = 'en-US'; u.rate = 0.95; synth.speak(u)
+  }
+
+  // ── 原声播放（跟读栏"播放原音"：定位视频到当前句起止时间，播视频原声）──
+  const stopAtEndRef = useRef(null)
+  const playOriginalSentence = () => {
+    const vid = videoRef.current
+    if (!vid || !currentSub) return
+    // 清理上一次的句末自动暂停监听
+    if (stopAtEndRef.current) {
+      vid.removeEventListener('timeupdate', stopAtEndRef.current)
+      stopAtEndRef.current = null
+    }
+    const { startTime, endTime } = currentSub
+    vid.currentTime = startTime
+    setCurrentTime(startTime)
+    vid.play().catch(() => {})
+    setPlaying(true)
+    // 已开启单句循环时交给循环逻辑；否则句末自动暂停（视频 pause 事件会同步 setPlaying(false)）
+    if (!isLooping && endTime != null) {
+      const onTime = () => {
+        if (vid.currentTime >= endTime) {
+          vid.removeEventListener('timeupdate', onTime)
+          stopAtEndRef.current = null
+          vid.pause()
+        }
+      }
+      stopAtEndRef.current = onTime
+      vid.addEventListener('timeupdate', onTime)
+    }
   }
 
   // ── Bookmark ──
@@ -656,7 +680,7 @@ export default function VideoDetail() {
                     {currentSub?.textCn && <p className="text-xs text-slate-400 mt-1.5 font-medium">{currentSub.textCn}</p>}
                   </div>
                   {currentSub && (
-                    <button onClick={speakActiveSentence} className="text-indigo-600 hover:text-indigo-800 p-1.5 bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-pointer shrink-0 active:scale-95" title="播放原音">
+                    <button onClick={playOriginalSentence} className="text-indigo-600 hover:text-indigo-800 p-1.5 bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-pointer shrink-0 active:scale-95" title="播放原音">
                       <Volume2 className="h-4 w-4" />
                     </button>
                   )}
@@ -1051,7 +1075,7 @@ export default function VideoDetail() {
                         <div className="bg-white border border-slate-100 p-3.5 rounded-xl text-xs font-bold text-slate-700 leading-relaxed flex items-start justify-between gap-3">
                           <span>{currentSub?.textEn || '请选择一句字幕'}</span>
                           {currentSub && (
-                            <button onClick={speakActiveSentence} className="text-indigo-600 hover:text-indigo-800 p-1 bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-pointer shrink-0" title="播放发音">
+                            <button onClick={playOriginalSentence} className="text-indigo-600 hover:text-indigo-800 p-1 bg-slate-50 hover:bg-indigo-50 rounded-lg cursor-pointer shrink-0" title="播放原音（视频原声）">
                               <Volume2 className="h-4 w-4" />
                             </button>
                           )}

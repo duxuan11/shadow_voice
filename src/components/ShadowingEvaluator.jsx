@@ -1,25 +1,46 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { parseResult } from '../utils/aliyunResult'
+import { buildEngineSdkUrl, analyzeEngineSdkBody } from '../utils/engineSdk'
 import { Mic, Square, Loader2, Volume2, ChevronDown } from 'lucide-react'
 
 // engine.js 动态加载（模块级单例，多个挂载点共享一次加载）
 let engineScriptPromise = null
+
+// 兜底诊断：脚本触发 load 但全局未定义时，抓取同 URL 内容定位原因。
+// 典型场景：生产 dist 构建于 SDK 放置之前，SPA 兜底把 index.html 当作 engine.js 返回，
+// 脚本元素仍会触发 load 事件（实测验证），但 window.EngineEvaluat 未定义。
+async function diagnoseEngineSdk(url) {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) {
+      return `engine.js 请求失败（HTTP ${res.status}），请确认 public/sdk/engine.js 已放置并重新构建前端`
+    }
+    const text = await res.text()
+    const analysis = analyzeEngineSdkBody(text)
+    if (!analysis.ok) return analysis.message
+    return 'engine.js 已加载但未找到 window.EngineEvaluat（脚本执行异常，请用阿里云控制台最新版 SDK 替换）'
+  } catch {
+    return 'engine.js 加载失败（网络错误），请检查网络后重试'
+  }
+}
+
 function loadEngineJs() {
   if (window.EngineEvaluat) return Promise.resolve()
   if (engineScriptPromise) return engineScriptPromise
+  const url = buildEngineSdkUrl()
   engineScriptPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script')
-    s.src = '/sdk/engine.js'
+    s.src = url
     s.onload = () => {
       if (window.EngineEvaluat) { resolve(); return }
       // 失败后重置单例，让 retry 可以重新尝试加载
       engineScriptPromise = null
-      reject(new Error('engine.js 已加载但未找到 window.EngineEvaluat'))
+      diagnoseEngineSdk(url).then((msg) => reject(new Error(msg)))
     }
     s.onerror = () => {
       engineScriptPromise = null
-      reject(new Error('无法加载 /sdk/engine.js，请确认 public/sdk/engine.js 已放置'))
+      reject(new Error(`无法加载 ${url}（网络错误或文件不存在），请确认 public/sdk/engine.js 已放置并重新构建前端`))
     }
     document.head.appendChild(s)
   })

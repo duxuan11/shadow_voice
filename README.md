@@ -38,6 +38,8 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 
 > 💰 **费用说明**：口语评测按调用次数计费（阿里云智能科教内容生成平台），单价 **0.004 元/次**（一句跟读 = 一次调用），失败调用不计费。个人使用每月约几元量级。配置见 `.env` 中 `SSECP_APP_ID` / `SSECP_APP_SECRET`，SDK 文件需从阿里云控制台下载后放入 `public/sdk/engine.js`。
 
+> ⚠️ **部署提醒**：放置/更新 `public/sdk/engine.js` 后**必须重新构建前端**（本地 `npm run build`；Docker 部署 `docker compose up --build`），否则生产环境 `/sdk/engine.js` 会命中 SPA 兜底返回 index.html，前端误报"engine.js 已加载但未找到 window.EngineEvaluat"（手机端先受影响，浏览器缓存了旧页面）。另外手机端评测需使用麦克风，请通过 **HTTPS** 或 localhost 访问（明文 HTTP 下 getUserMedia 不可用）。
+
 ### 📊 学习记录
 - **观看历史**：最近看过的 50 个视频
 - **生词本**：收藏的所有单词，按时间倒序，可删除
