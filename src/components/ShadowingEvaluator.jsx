@@ -11,8 +11,16 @@ function loadEngineJs() {
   engineScriptPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script')
     s.src = '/sdk/engine.js'
-    s.onload = () => (window.EngineEvaluat ? resolve() : reject(new Error('engine.js 已加载但未找到 window.EngineEvaluat')))
-    s.onerror = () => reject(new Error('无法加载 /sdk/engine.js，请确认 public/sdk/engine.js 已放置'))
+    s.onload = () => {
+      if (window.EngineEvaluat) { resolve(); return }
+      // 失败后重置单例，让 retry 可以重新尝试加载
+      engineScriptPromise = null
+      reject(new Error('engine.js 已加载但未找到 window.EngineEvaluat'))
+    }
+    s.onerror = () => {
+      engineScriptPromise = null
+      reject(new Error('无法加载 /sdk/engine.js，请确认 public/sdk/engine.js 已放置'))
+    }
     document.head.appendChild(s)
   })
   return engineScriptPromise
@@ -49,8 +57,17 @@ export default function ShadowingEvaluator({ refText }) {
   const warrantRef = useRef(null)
   const timerRef = useRef(null)
   const secondsRef = useRef(null)
+  const mountedRef = useRef(true)
 
   const setPhaseSafe = useCallback((p) => setPhase(p), [])
+
+  // ── 清理秒表与自动停止定时器（幂等，可重复调用）──
+  const clearTimers = useCallback(() => {
+    clearTimeout(timerRef.current)
+    clearInterval(secondsRef.current)
+    timerRef.current = null
+    secondsRef.current = null
+  }, [])
 
   // ── warrant 获取（缓存 + 过期前 60s 刷新 + 401 提示）──
   const getWarrant = useCallback(async () => {
@@ -76,7 +93,7 @@ export default function ShadowingEvaluator({ refText }) {
       userId: String(user.id),
       warrantId: warrantRef.current.warrantId,
       micAllowCallback: () => { /* 授权成功无需处理 */ },
-      micForbidCallback: () => { setPhaseSafe('error'); setError('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问') },
+      micForbidCallback: () => { clearTimers(); setPhaseSafe('error'); setError('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问') },
       micVolumeCallback: (v) => setVolume(typeof v === 'number' ? v : 0),
       engineFirstInitDone: () => {
         initRef.current.done = true
@@ -92,15 +109,16 @@ export default function ShadowingEvaluator({ refText }) {
         }
       },
       engineBackResultFail: (msg) => {
+        clearTimers()
         setPhaseSafe('error')
         setError(`评测失败：${typeof msg === 'string' ? msg : JSON.stringify(msg)}`)
       },
-      JSSDKNotSupport: () => { setPhaseSafe('error'); setError('当前浏览器不支持评测 SDK，请使用 Chrome / Edge / Firefox') },
-      noNetwork: () => { setPhaseSafe('error'); setError('网络不可用，评测需要联网') },
+      JSSDKNotSupport: () => { clearTimers(); setPhaseSafe('error'); setError('当前浏览器不支持评测 SDK，请使用 Chrome / Edge / Firefox') },
+      noNetwork: () => { clearTimers(); setPhaseSafe('error'); setError('网络不可用，评测需要联网') },
     })
     engineRef.current = engine
     return engine
-  }, [user, setPhaseSafe])
+  }, [user, setPhaseSafe, clearTimers])
 
   const waitInit = useCallback(() => {
     if (initRef.current.done) return Promise.resolve()
@@ -116,9 +134,12 @@ export default function ShadowingEvaluator({ refText }) {
     setExpandedWord(null)
     try {
       await loadEngineJs()
+      if (!mountedRef.current) return
       await getWarrant()
+      if (!mountedRef.current) return
       const engine = ensureEngine()
       await waitInit()
+      if (!mountedRef.current) return
       engine.startRecord({
         coreType: 'en.sent.score',
         refText,
@@ -135,30 +156,32 @@ export default function ShadowingEvaluator({ refText }) {
       secondsRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
       timerRef.current = setTimeout(() => { if (engineRef.current) { engineRef.current.stopRecord(); setPhaseSafe('evaluating') } }, MAX_RECORD_MS)
     } catch (e) {
+      clearTimers()
       setPhaseSafe('error')
       setError(e.message || '启动评测失败')
     }
-  }, [getWarrant, ensureEngine, waitInit, refText, setPhaseSafe])
+  }, [clearTimers, getWarrant, ensureEngine, waitInit, refText, setPhaseSafe])
 
   // ── 停止评测 ──
   const stop = useCallback(() => {
-    clearTimeout(timerRef.current)
-    clearInterval(secondsRef.current)
+    clearTimers()
     if (engineRef.current) engineRef.current.stopRecord()
     setPhaseSafe('evaluating')
-  }, [setPhaseSafe])
+  }, [clearTimers, setPhaseSafe])
 
   // ── 重试 ──
   const retry = useCallback(() => {
+    clearTimers()
     setPhase('ready')
     setError(null)
     setResult(null)
     setVolume(0)
-  }, [])
+  }, [clearTimers])
 
   // ── 卸载清理 ──
   useEffect(() => {
     return () => {
+      mountedRef.current = false
       clearTimeout(timerRef.current)
       clearInterval(secondsRef.current)
       if (engineRef.current) {
