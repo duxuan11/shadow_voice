@@ -244,30 +244,45 @@ export default function VideoDetail() {
   }, [video])
 
   // ── Active subtitle tracking ──
-  useEffect(() => { if (!video || !video.subtitles) return; setActiveSubIndex(video.subtitles.findIndex(s => currentTime >= s.startTime && currentTime <= s.endTime)) }, [currentTime, video])
+  // 有匹配字幕时更新；落在时间间隙（无匹配）时保留上一条，避免高亮消失与跟随跳变
+  useEffect(() => {
+    if (!video || !video.subtitles) return
+    const idx = video.subtitles.findIndex(s => currentTime >= s.startTime && currentTime <= s.endTime)
+    if (idx >= 0) setActiveSubIndex(idx)
+  }, [currentTime, video])
 
-  // Auto-scroll to active subtitle (desktop) — center active in viewport
+  // Auto-scroll to active subtitle (desktop) — 温和跟随：仅当当前句滚出可视区时，
+  // 滚动到字幕区顶部（留 8px）。用容器 scrollTo（而非 scrollIntoView），
+  // 避免连带滚动窗口导致整页被拖动。
   useEffect(() => {
     if (sidebarTab !== 'transcript' || activeSubIndex < 0 || !scrollContainerRef.current) return
-    const el = scrollContainerRef.current.querySelector(`#sub-item-${activeSubIndex}`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const container = scrollContainerRef.current
+    const el = container.querySelector(`#sub-item-${activeSubIndex}`)
+    if (!el) return
+    const cRect = container.getBoundingClientRect()
+    const eRect = el.getBoundingClientRect()
+    const topGap = eRect.top - cRect.top
+    const bottomGap = cRect.bottom - eRect.bottom
+    if (topGap < 0 || bottomGap < 0) {
+      container.scrollTo({ top: container.scrollTop + topGap - 8, behavior: 'smooth' })
+    }
   }, [activeSubIndex, sidebarTab])
 
-  // Auto-scroll to active subtitle (mobile) — center active + trigger on play
+  // Auto-scroll to active subtitle (mobile) — 温和跟随：仅当当前句滚出可视区时
+  // （底部固定操作栏保留 80px 余量）滚动到字幕区顶部（留 8px）。用容器 scrollTo
+  // 而非 scrollIntoView，避免整页被拖动；用 getBoundingClientRect 而非 offsetTop
+  // （offsetTop 相对 body，坐标系与容器 scrollTop 不一致）。
   useEffect(() => {
     if (mobileTab !== 'transcript' || activeSubIndex < 0 || !mobileScrollRef.current) return
-    const el = mobileScrollRef.current.querySelector(`[data-mobile-sub-index="${activeSubIndex}"]`)
-    if (el) {
-      const container = mobileScrollRef.current
-      const elTop = el.offsetTop
-      const elBottom = elTop + el.offsetHeight
-      const viewTop = container.scrollTop
-      const viewBottom = viewTop + container.clientHeight
-      // Only scroll if element is NOT fully visible in the viewport
-      const isVisible = elTop >= viewTop && elBottom <= viewBottom - 80 // 80px margin for bottom bar
-      if (!isVisible) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
+    const container = mobileScrollRef.current
+    const el = container.querySelector(`[data-mobile-sub-index="${activeSubIndex}"]`)
+    if (!el) return
+    const cRect = container.getBoundingClientRect()
+    const eRect = el.getBoundingClientRect()
+    const topGap = eRect.top - cRect.top
+    const bottomGap = cRect.bottom - eRect.bottom
+    if (topGap < 0 || bottomGap < 80) {
+      container.scrollTo({ top: Math.max(0, container.scrollTop + topGap - 8), behavior: 'smooth' })
     }
   }, [activeSubIndex, mobileTab, playing])
 
@@ -528,7 +543,7 @@ export default function VideoDetail() {
           MOBILE LAYOUT (full-screen app-like)
           ══════════════════════════════════════════ */}
       {isMobile && (
-      <div className="flex flex-col h-screen bg-white overflow-hidden">
+      <div className="fixed inset-0 flex flex-col bg-white overflow-hidden">
 
         {/* ── Mobile Header ── */}
         <div className="flex items-center justify-between bg-white/95 backdrop-blur-md px-3 py-2 border-b border-slate-100 shrink-0 z-10"

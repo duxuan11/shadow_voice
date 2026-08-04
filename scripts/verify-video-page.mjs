@@ -96,7 +96,7 @@ async function runMode(modeName) {
   let s = await ev(cdp, snapExpr)
   check(`[${modeName}] 字幕渲染 35 条`, s.cardCount === 35, `count=${s.cardCount}`)
   if (isMobile) {
-    check(`[${modeName}] 文档无溢出 docScrollH==docClientH`, s.docScrollH === s.docClientH, `${s.docScrollH} vs ${s.docClientH}`)
+    check(`[${modeName}] 文档无溢出 docScrollH<=docClientH`, s.docScrollH <= s.docClientH, `${s.docScrollH} vs ${s.docClientH}`)
   }
   check(`[${modeName}] 初始 window.scrollY==0`, s.winScrollY === 0, `y=${s.winScrollY}`)
 
