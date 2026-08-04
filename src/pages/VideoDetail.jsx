@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         ChevronLeft, ChevronRight, Repeat, BookOpen,
         List, Mic, PenTool, Languages, RotateCcw, CheckCircle2, AlertCircle,
-        Sparkles, Heart, Star, X, Gauge, Globe, EyeOff } from 'lucide-react'
+        Heart, Star, X, Gauge, Globe, EyeOff } from 'lucide-react'
+import ShadowingEvaluator from '../components/ShadowingEvaluator'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -74,13 +75,6 @@ export default function VideoDetail() {
 
   const [vocabulary, setVocabulary] = useState([])
   const [bookmarkedIds, setBookmarkedIds] = useState([])
-
-  // Shadowing state
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingSeconds, setRecordingSeconds] = useState(0)
-  const [shadowResult, setShadowResult] = useState(null)
-  const [recordedAudio, setRecordedAudio] = useState(null)
-  const mediaRecorderRef = useRef(null)
 
   // Cloze state
   const [clozeOptions, setClozeOptions] = useState([])
@@ -175,33 +169,7 @@ export default function VideoDetail() {
     if (!sub) return
     setupClozeMode(sub)
     setupTranslateMode(sub)
-    setShadowResult(null)
-    setIsRecording(false)
   }, [activeSubIndex, video, setupClozeMode, setupTranslateMode])
-
-  // ── Recording ──
-  useEffect(() => {
-    let interval = null
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingSeconds(prev => { if (prev + 1 >= 4) { stopRecording(); return 0 } return prev + 1 })
-      }, 1000)
-    } else { setRecordingSeconds(0) }
-    return () => clearInterval(interval)
-  }, [isRecording]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const startRecording = async () => {
-    try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); const r = new MediaRecorder(s); const ch = []; r.ondataavailable = e => ch.push(e.data); r.onstop = () => { const b = new Blob(ch, { type: 'audio/webm' }); setRecordedAudio(URL.createObjectURL(b)); s.getTracks().forEach(t => t.stop()) }; mediaRecorderRef.current = r; r.start(); setIsRecording(true); setShadowResult(null); setPlaying(false) } catch { /* ignore */ }
-  }
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); setIsRecording(false) }
-    if (!currentSub) return
-    const words = currentSub.textEn.split(/\s+/).map(word => {
-      const statuses = ['perfect', 'perfect', 'perfect', 'good', 'poor']
-      return { text: word, status: statuses[Math.floor(Math.random() * statuses.length)] }
-    })
-    setShadowResult({ score: Math.floor(Math.random() * 12) + 87, words })
-  }
 
   // ── Cloze / Translate handlers ──
   const handleSelectClozeOption = (option) => {
@@ -694,45 +662,7 @@ export default function VideoDetail() {
                   )}
                 </div>
                 {currentSub ? (
-                  <div className="flex flex-col items-center py-6">
-                    {isRecording ? (
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="flex items-end justify-center space-x-1 h-8 px-8">
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map(bar => (
-                            <div key={bar} style={{ height: `${Math.floor(Math.random() * 24) + 4}px` }} className="w-1 bg-indigo-500 rounded-full animate-pulse transition-all duration-100" />
-                          ))}
-                        </div>
-                        <span className="text-xs font-semibold text-slate-400">正在录音... {recordingSeconds}s</span>
-                        <button onClick={stopRecording} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-all active:scale-95">结束录音并分析</button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center space-y-3">
-                        <button onClick={startRecording} className="h-14 w-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all">
-                          <Mic className="h-6 w-6" />
-                        </button>
-                        <span className="text-xs font-bold text-slate-500">点击麦克风，开启发音评分</span>
-                      </div>
-                    )}
-                    {shadowResult && (
-                      <div className="mt-4 w-full border-t border-indigo-100/40 pt-4 animate-fade-in">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-bold text-slate-500">评测得分</span>
-                          <span className="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-mono">{shadowResult.score}分</span>
-                        </div>
-                        <div className="bg-white border border-slate-100 p-3 rounded-xl flex flex-wrap gap-1.5 text-xs font-bold leading-relaxed">
-                          {shadowResult.words.map((item, i) => (
-                            <span key={i} className={`px-1 rounded ${item.status === 'perfect' ? 'text-emerald-600 bg-emerald-50' : item.status === 'good' ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50 underline decoration-wavy'}`}>{item.text}</span>
-                          ))}
-                        </div>
-                        <div className="mt-3 flex items-center space-x-1.5 text-[10px] font-medium text-emerald-600">
-                          <Sparkles className="h-3.5 w-3.5 text-emerald-500" /><span>发音极为饱满，连读自然，已计入学习档案！</span>
-                        </div>
-                      </div>
-                    )}
-                    {recordedAudio && !shadowResult && (
-                      <div className="mt-3 w-full"><audio controls src={recordedAudio} className="w-full h-9 rounded-lg" /></div>
-                    )}
-                  </div>
+                  <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} />
                 ) : (
                   <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                 )}
@@ -1127,45 +1057,7 @@ export default function VideoDetail() {
                           )}
                         </div>
                         {currentSub ? (
-                          <div className="flex flex-col items-center py-6">
-                            {isRecording ? (
-                              <div className="flex flex-col items-center space-y-4">
-                                <div className="flex items-end justify-center space-x-1 h-8 px-8">
-                                  {[1, 2, 3, 4, 5, 6, 7, 8].map(bar => (
-                                    <div key={bar} style={{ height: `${Math.floor(Math.random() * 24) + 4}px` }} className="w-1 bg-indigo-500 rounded-full animate-pulse transition-all duration-100" />
-                                  ))}
-                                </div>
-                                <span className="text-xs font-semibold text-slate-400">正在录音... {recordingSeconds}s</span>
-                                <button onClick={stopRecording} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-all">结束录音并分析</button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center space-y-3">
-                                <button onClick={startRecording} className="h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95">
-                                  <Mic className="h-5 w-5" />
-                                </button>
-                                <span className="text-[11px] font-bold text-slate-500">点击麦克风，开启发音评分</span>
-                              </div>
-                            )}
-                            {shadowResult && (
-                              <div className="mt-4 border-t border-indigo-100/40 pt-4 animate-fade-in">
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-xs font-bold text-slate-500">评测得分：</span>
-                                  <span className="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-mono">{shadowResult.score}分</span>
-                                </div>
-                                <div className="bg-white border border-slate-100 p-3 rounded-xl flex flex-wrap gap-1.5 text-xs font-bold leading-relaxed">
-                                  {shadowResult.words.map((item, i) => (
-                                    <span key={i} className={`px-1 rounded ${item.status === 'perfect' ? 'text-emerald-600 bg-emerald-50' : item.status === 'good' ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50 underline decoration-wavy'}`}>{item.text}</span>
-                                  ))}
-                                </div>
-                                <div className="mt-3 flex items-center space-x-1.5 text-[10px] font-medium text-emerald-600">
-                                  <Sparkles className="h-3.5 w-3.5 text-emerald-500" /><span>发音极为饱满，连读自然，已计入学习档案！</span>
-                                </div>
-                              </div>
-                            )}
-                            {recordedAudio && !shadowResult && (
-                              <div className="mt-3"><audio controls src={recordedAudio} className="w-full h-9 rounded-lg" /></div>
-                            )}
-                          </div>
+                          <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} />
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                         )}
