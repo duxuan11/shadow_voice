@@ -8,7 +8,6 @@ dist
 *.md
 !README.md
 scripts
-public
 download_*.sh
 download_*.py
 fetch_*.sh
