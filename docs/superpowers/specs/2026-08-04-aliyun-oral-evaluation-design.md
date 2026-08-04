@@ -66,7 +66,7 @@ VideoDetail（视频详情页）的「跟读」tab 目前是**假评分**：`sto
      ```
      即：`md5("appid=..&app_secret=..&timestamp=..&user_client_ip=..&user_id=..")`（排序后顺序）。
   4. 以 `application/x-www-form-urlencoded` POST 到 `SSECP_AUTH_URL`（env，默认 `https://api.cloud.ssapi.cn/auth/authorize`）。开发期可用官方测试环境 `http://trial.cloud.ssapi.cn:8080/auth/authorize`。
-  5. 阿里云返回 `code === 0` → 响应体含 `data.warrant_id` 与 `data.expire_at`（**绝对过期时间戳**，直接用于缓存）→ 存缓存 → 返回 `{ warrantId, expiresAt }`；否则 → 503 + `msg`。
+  5. 阿里云返回 `code === 0` → 响应体含 `data.warrant_id` 与 `data.expire_at`（**绝对过期时间戳**，直接用于缓存）→ 存缓存 → 返回 `{ warrantId, expiresAt, applicationId }`（`applicationId` 即 `SSECP_APP_ID`，前端构造 EngineEvaluat 需要）；否则 → 503 + `msg`。
 - 失败兜底：阿里云超时/网络错误 → 502；不泄露 `app_secret`。
 
 ### 环境变量（.env 已建）
@@ -88,7 +88,7 @@ VideoDetail（视频详情页）的「跟读」tab 目前是**假评分**：`sto
 - 内部状态：`phase`（`loading-engine | ready | recording | evaluating | result | error`）、`result`、`error`、`tipId`、`volume`（麦克风音量，驱动录音动画条，替换现有随机波浪高度）。
 - 流程：
   1. **加载 engine.js**：首次进入组件时动态注入 `<script src="/sdk/engine.js">`，`window.EngineEvaluat` 就绪后进入 `ready`。engine.js 由用户从阿里云控制台"口语评测项目 → JavaScript SDK"下载，放到 `public/sdk/engine.js`（构建时自动进 dist）。
-  2. **取 warrant**：`authFetch('/api/aliyun/authorize', { method: 'POST' })`；`useRef` 缓存 `{ warrantId, expiresAt }`，距过期 60s 内重新申请。
+  2. **取 warrant**：`authFetch('/api/aliyun/authorize', { method: 'POST' })`；`useRef` 缓存 `{ warrantId, expiresAt, applicationId }`，距过期 60s 内重新申请；401（游客无 token）→ 提示"请先登录后使用口语评测"。
   3. **开始评测**：`myRecord.startRecord(params)`，`params`：
      ```js
      {
