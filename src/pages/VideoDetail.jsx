@@ -329,12 +329,49 @@ export default function VideoDetail() {
   }
   const toggleMute = () => { const vid = videoRef.current; if (vid) { setMuted(!muted); vid.muted = !muted } }
   const handleVolumeChange = (e) => { const v = parseFloat(e.target.value); setVolume(v); if (v > 0) setMuted(false); const vid = videoRef.current; if (vid) vid.volume = v }
-  const toggleFullscreen = () => {
-    if (!playerContainerRef.current) return
-    if (!isFullscreen) { playerContainerRef.current.requestFullscreen(); setIsFullscreen(true) }
-    else { document.exitFullscreen(); setIsFullscreen(false) }
+  const toggleFullscreen = async () => {
+    const container = playerContainerRef.current
+    const vid = videoRef.current
+    if (!container || !vid) return
+    // 已在全屏 → 退出并解除横屏锁定
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      try {
+        if (document.exitFullscreen) await document.exitFullscreen()
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+      } catch { /* ignore */ }
+      try { window.screen?.orientation?.unlock?.() } catch { /* ignore */ }
+      setIsFullscreen(false)
+      return
+    }
+    // iPhone Safari：不支持任意元素全屏 → 原生视频全屏（自动横屏）
+    if (isMobile && typeof vid.webkitEnterFullscreen === 'function') {
+      vid.webkitEnterFullscreen()
+      setIsFullscreen(true)
+      return
+    }
+    try {
+      const req = container.requestFullscreen || container.webkitRequestFullscreen
+      if (typeof req !== 'function') return
+      await req.call(container)
+      // 安卓：锁定横屏，避免竖屏全屏显示成一条小画面
+      if (isMobile && window.screen?.orientation?.lock) {
+        try { await window.screen.orientation.lock('landscape') } catch { /* 部分浏览器/非安全上下文不允许 */ }
+      }
+      setIsFullscreen(true)
+    } catch { /* 浏览器拒绝（如非 HTTPS）→ 不置状态 */ }
   }
-  useEffect(() => { const h = () => setIsFullscreen(!!document.fullscreenElement); document.addEventListener('fullscreenchange', h); return () => document.removeEventListener('fullscreenchange', h) }, [])
+  useEffect(() => {
+    const h = () => setIsFullscreen(!!(document.fullscreenElement || document.webkitFullscreenElement))
+    const hEnd = () => setIsFullscreen(false) // iOS 原生播放器关闭时复位
+    document.addEventListener('fullscreenchange', h)
+    document.addEventListener('webkitfullscreenchange', h)
+    document.addEventListener('webkitendfullscreen', hEnd)
+    return () => {
+      document.removeEventListener('fullscreenchange', h)
+      document.removeEventListener('webkitfullscreenchange', h)
+      document.removeEventListener('webkitendfullscreen', hEnd)
+    }
+  }, [])
   const changeSpeed = (s) => { const vid = videoRef.current; if (vid) vid.playbackRate = s; setPlaybackRate(s); setShowSpeedPicker(false) }
   const cycleSpeed = () => { const s = playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : playbackRate === 1.5 ? 0.75 : 1; changeSpeed(s) }
   const goToNextVideo = () => { if (!allVideos.length) return; const i = allVideos.findIndex(v => v.id === id); if (i >= 0 && i < allVideos.length - 1) navigate(`/video/${allVideos[i + 1].id}`) }
@@ -460,7 +497,7 @@ export default function VideoDetail() {
         onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
         onEnded={handleVideoEnded}
-        className="w-full h-full object-cover cursor-pointer"
+        className={`w-full h-full ${isFullscreen ? 'object-contain' : 'object-cover'} cursor-pointer`}
         playsInline preload="auto" />
 
       {/* Big play button overlay (shown when paused) */}

@@ -126,6 +126,8 @@ async function runMode(modeName) {
   check(`[${modeName}] 全屏失败后视频仍 object-cover`, s.videoContain === false)
 
   cdp.close()
+  // 关闭标签页，避免重复运行累积内存
+  try { await fetch(`${BASE}/json/close/${tab.id}`) } catch { /* ignore */ }
 }
 
 ;(async () => {
