@@ -6,7 +6,7 @@ export function parseResult(msg) {
   const r = (raw && raw.result) || {}
   const details = Array.isArray(r.details) ? r.details : []
 
-  const words = details.map((w) => ({
+  const words = details.filter(Boolean).map((w) => ({
     char: w.char || '',
     score: typeof w.score === 'number' ? w.score : null,
     start: w.start ?? null,

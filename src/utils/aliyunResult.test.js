@@ -77,6 +77,22 @@ test('对象入参与字符串入参等价', () => {
   assert.deepEqual(asObj, asStr)
 })
 
+test('details 含 null 项时跳过且不抛异常', () => {
+  const r = parseResult(JSON.stringify({
+    result: {
+      details: [
+        { char: 'I', score: 95 },
+        null,
+        { char: 'want', score: 60 },
+        null,
+      ],
+    },
+  }))
+  assert.equal(r.words.length, 2)
+  assert.equal(r.words[0].char, 'I')
+  assert.equal(r.words[1].char, 'want')
+})
+
 test('audioUrl 缺失时按 applicationId/recordId 拼接（SDK 约定）', () => {
   const r = parseResult(JSON.stringify({
     applicationId: 'a148',

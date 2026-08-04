@@ -58,6 +58,7 @@ export default function ShadowingEvaluator({ refText }) {
   const timerRef = useRef(null)
   const secondsRef = useRef(null)
   const mountedRef = useRef(true)
+  const busyRef = useRef(false)
 
   const setPhaseSafe = useCallback((p) => setPhase(p), [])
 
@@ -130,33 +131,46 @@ export default function ShadowingEvaluator({ refText }) {
 
   // ── 开始评测 ──
   const start = useCallback(async () => {
+    if (busyRef.current || !mountedRef.current) return
+    busyRef.current = true
     setError(null)
     setResult(null)
     setExpandedWord(null)
     try {
       await loadEngineJs()
-      if (!mountedRef.current) return
+      if (!mountedRef.current) { busyRef.current = false; return }
       await getWarrant()
-      if (!mountedRef.current) return
+      if (!mountedRef.current) { busyRef.current = false; return }
       const engine = ensureEngine()
       await waitInit()
-      if (!mountedRef.current) return
-      engine.startRecord({
-        coreType: 'en.sent.score',
-        refText,
-        warrantId: warrantRef.current.warrantId,
-        rank: 100,
-        precision: 1,
-        auto_rhythm: 1,      // 连读检测（关键开关）
-        outputPhones: 1,     // 音素级得分
-        phdet: 1,            // 音素检错
-        attachAudioUrl: 1,   // 返回录音地址供回放
-      })
+      if (!mountedRef.current) { busyRef.current = false; return }
+      // 先置 recording UI 与定时器，再调 startRecord：
+      // 避免 SDK 在 startRecord 内同步触发失败回调/抛错时，后面的 setPhaseSafe('recording') 覆盖错误态
       setPhaseSafe('recording')
       setSeconds(0)
       secondsRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
       timerRef.current = setTimeout(() => { if (engineRef.current) { engineRef.current.stopRecord(); setPhaseSafe('evaluating') } }, MAX_RECORD_MS)
+      busyRef.current = false
+      try {
+        engine.startRecord({
+          coreType: 'en.sent.score',
+          refText,
+          warrantId: warrantRef.current.warrantId,
+          rank: 100,
+          precision: 1,
+          auto_rhythm: 1,      // 连读检测（关键开关）
+          outputPhones: 1,     // 音素级得分
+          phdet: 1,            // 音素检错
+          attachAudioUrl: 1,   // 返回录音地址供回放
+        })
+      } catch (e) {
+        busyRef.current = false
+        clearTimers()
+        setPhaseSafe('error')
+        setError(e.message || '启动录音失败')
+      }
     } catch (e) {
+      busyRef.current = false
       clearTimers()
       setPhaseSafe('error')
       setError(e.message || '启动评测失败')
@@ -172,6 +186,7 @@ export default function ShadowingEvaluator({ refText }) {
 
   // ── 重试 ──
   const retry = useCallback(() => {
+    busyRef.current = false
     clearTimers()
     setPhase('ready')
     setError(null)
@@ -222,9 +237,13 @@ export default function ShadowingEvaluator({ refText }) {
       {phase === 'recording' && (
         <div className="flex flex-col items-center space-y-4">
           <div className="flex items-end justify-center space-x-1 h-8 px-8">
-            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} style={{ height: `${Math.max(6, Math.min(32, 6 + (volume * (0.5 + (i % 3) * 0.2))))}px` }} className="w-1 bg-indigo-500 rounded-full animate-pulse transition-all duration-100" />
-            ))}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+              // micVolumeCallback 量程未公开，按 0-100 假设归一化；联调时若条不动，校准下面的 100
+              const v = Math.min(1, Math.max(0, (typeof volume === 'number' ? volume : 0) / 100))
+              return (
+                <div key={i} style={{ height: `${Math.max(6, Math.min(32, Math.round(6 + v * 26 * (0.6 + (i % 3) * 0.2))))}px` }} className="w-1 bg-indigo-500 rounded-full animate-pulse transition-all duration-100" />
+              )
+            })}
           </div>
           <span className="text-xs font-semibold text-slate-400">正在录音... {seconds}s</span>
           <button onClick={stop} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-all">
