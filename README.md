@@ -38,7 +38,12 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 
 > 💰 **费用说明**：口语评测按调用次数计费（阿里云智能科教内容生成平台），单价 **0.004 元/次**（一句跟读 = 一次调用），失败调用不计费。个人使用每月约几元量级。配置见 `.env` 中 `SSECP_APP_ID` / `SSECP_APP_SECRET`，SDK 文件需从阿里云控制台下载后放入 `public/sdk/engine.js`。
 
-> ⚠️ **部署提醒**：放置/更新 `public/sdk/engine.js` 后**必须重新构建前端**（本地 `npm run build`；Docker 部署 `docker compose up --build`），否则生产环境 `/sdk/engine.js` 会命中 SPA 兜底返回 index.html，前端误报"engine.js 已加载但未找到 window.EngineEvaluat"（手机端先受影响，浏览器缓存了旧页面）。另外手机端评测需使用麦克风，请通过 **HTTPS** 或 localhost 访问（明文 HTTP 下 getUserMedia 不可用）。
+> ⚠️ **部署提醒**：放置/更新 `public/sdk/engine.js` 后**必须重新构建前端**（本地 `npm run build`；Docker 部署 `docker compose up --build`），否则生产环境 `/sdk/engine.js` 会命中 SPA 兜底返回 index.html，前端误报"engine.js 已加载但未找到 window.EngineEvaluat"（手机端先受影响，浏览器缓存了旧页面）。另外手机端评测需使用麦克风，浏览器只允许在**安全上下文**（HTTPS 或 localhost）下调用 getUserMedia —— 明文 HTTP（如 `http://NAS局域网IP:3001`）下点击麦克风会提示"当前浏览器不支持评测 SDK"，这是环境问题不是浏览器问题（Chrome/Edge/Firefox 均可），前端已针对该场景给出 HTTPS 提示。
+
+  **手机端 HTTPS 访问方案（任选其一）**：
+  1. **Caddy 反向代理**（推荐，自动管理证书）：宿主机装 Caddy 后 `reverse_proxy localhost:3001`，有域名时自动申请证书；纯局域网 IP 则用自签证书（手机需安装并信任该证书）。
+  2. **隧道工具**（如 cloudflared、frp、tailscale serve）：获得一个 HTTPS 域名，无需自签证书。
+  3. **电脑/本机调试**：`http://localhost:3001` 本身就是安全上下文，可直接用电脑浏览器测试跟读评测。
 
 ### 📊 学习记录
 - **观看历史**：最近看过的 50 个视频

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { parseResult } from '../utils/aliyunResult'
-import { buildEngineSdkUrl, analyzeEngineSdkBody } from '../utils/engineSdk'
+import { buildEngineSdkUrl, analyzeEngineSdkBody, micEnvironmentProblem, jssdkNotSupportMessage } from '../utils/engineSdk'
 import { Mic, Square, Loader2, Volume2, ChevronDown } from 'lucide-react'
 
 // engine.js 动态加载（模块级单例，多个挂载点共享一次加载）
@@ -58,6 +58,11 @@ const MAX_RECORD_MS = 30 * 1000
 // micForbidCallback 拒绝 mic 就绪 promise 时使用的哨兵错误，用于区分
 //「麦克风权限被拒绝」（micForbidCallback 已展示错误 UI）与其他启动失败
 const MIC_FORBIDDEN_SENTINEL = 'MIC_FORBIDDEN'
+// JSSDKNotSupport 回调拒绝 mic 就绪 promise 时使用的哨兵：
+// 浏览器环境不支持（如明文 HTTP 下 engine.js checkSuport 失败）时，SDK 既不会调
+// micAllowCallback 也不会调 micForbidCallback，不 reject 的话 start() 会永远卡在
+// await micReady（重试后停留在"正在获取麦克风权限"）。该回调已展示错误 UI。
+const JSSDK_NOT_SUPPORT_SENTINEL = 'JSSDK_NOT_SUPPORT'
 
 function wordColor(score) {
   if (score == null) return 'text-slate-400'
@@ -159,7 +164,17 @@ export default function ShadowingEvaluator({ refText }) {
         setPhaseSafe('error')
         setError(`评测失败：${typeof msg === 'string' ? msg : JSON.stringify(msg)}`)
       },
-      JSSDKNotSupport: () => { clearTimers(); setPhaseSafe('error'); setError('当前浏览器不支持评测 SDK，请使用 Chrome / Edge / Firefox') },
+      JSSDKNotSupport: () => {
+        clearTimers()
+        setMicWaiting(false)
+        setPhaseSafe('error')
+        setError(jssdkNotSupportMessage())
+        // 拒绝 mic 就绪信号：明文 HTTP 等不支持环境下 SDK 不会回调 micAllow/micForbid，
+        // 不 reject 会让 start() 的 await micReady 永远挂起（重试后卡在"正在获取麦克风权限"）
+        micReadyRef.current?.reject(new Error(JSSDK_NOT_SUPPORT_SENTINEL))
+        // 丢弃该引擎：环境问题重试时重新走完整流程（再次 checkSuport，同样报环境错误）
+        engineRef.current = null
+      },
       noNetwork: () => { clearTimers(); setPhaseSafe('error'); setError('网络不可用，评测需要联网') },
     })
     engineRef.current = engine
@@ -181,6 +196,11 @@ export default function ShadowingEvaluator({ refText }) {
     setResult(null)
     setExpandedWord(null)
     try {
+      // 环境预检：明文 HTTP（非 localhost）下手机浏览器无 getUserMedia，
+      // 阿里云 engine.js 会误报"浏览器不支持"。提前给出可操作的 HTTPS 提示，
+      // 避免加载 SDK/申请权限后才失败。
+      const envProblem = micEnvironmentProblem()
+      if (envProblem) throw new Error(envProblem.message)
       await loadEngineJs()
       if (!mountedRef.current) { busyRef.current = false; return }
       await getWarrant()
@@ -222,8 +242,8 @@ export default function ShadowingEvaluator({ refText }) {
       busyRef.current = false
       clearTimers()
       setMicWaiting(false)
-      if (e?.message === MIC_FORBIDDEN_SENTINEL) {
-        // micForbidCallback 已展示错误 UI；丢弃该引擎，重试时重新发起 getUserMedia
+      if (e?.message === MIC_FORBIDDEN_SENTINEL || e?.message === JSSDK_NOT_SUPPORT_SENTINEL) {
+        // micForbidCallback / JSSDKNotSupport 已展示错误 UI；丢弃该引擎，重试时重新发起 getUserMedia
         engineRef.current = null
         return
       }
