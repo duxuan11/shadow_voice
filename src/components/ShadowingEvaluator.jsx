@@ -55,6 +55,9 @@ const TIP_MESSAGES = {
   10008: '音频模拟信号截幅，建议调整麦克风音量重试',
 }
 const MAX_RECORD_MS = 30 * 1000
+// micForbidCallback 拒绝 mic 就绪 promise 时使用的哨兵错误，用于区分
+//「麦克风权限被拒绝」（micForbidCallback 已展示错误 UI）与其他启动失败
+const MIC_FORBIDDEN_SENTINEL = 'MIC_FORBIDDEN'
 
 function wordColor(score) {
   if (score == null) return 'text-slate-400'
@@ -72,9 +75,14 @@ export default function ShadowingEvaluator({ refText }) {
   const [volume, setVolume] = useState(0)
   const [seconds, setSeconds] = useState(0)
   const [expandedWord, setExpandedWord] = useState(null)
+  const [micWaiting, setMicWaiting] = useState(false)
 
   const engineRef = useRef(null)
   const initRef = useRef({ done: false, resolvers: [] })
+  // { promise, resolve, reject }：engine 初始化时 getUserMedia 的 stream 就绪信号。
+  // engine.js 的 engineFirstInitDone 先于 getUserMedia 完成触发，移动端慢速授权时
+  // 直接 startRecord 会 createMediaStreamSource(null) 报类型错误，必须等它。
+  const micReadyRef = useRef(null)
   const warrantRef = useRef(null)
   const timerRef = useRef(null)
   const secondsRef = useRef(null)
@@ -110,12 +118,27 @@ export default function ShadowingEvaluator({ refText }) {
   // ── engine 实例（懒创建，等 engineFirstInitDone；用 initRef.done 避免二次评测死等）──
   const ensureEngine = useCallback(() => {
     if (engineRef.current) return engineRef.current
+    // 新引擎：初始化状态与 mic 就绪信号复位（权限被拒后丢弃引擎重试时，
+    // 不能沿用旧引擎的 init.done / 已拒绝的 promise）
+    initRef.current = { done: false, resolvers: [] }
+    const micReady = {}
+    micReady.promise = new Promise((resolve, reject) => { micReady.resolve = resolve; micReady.reject = reject })
+    micReadyRef.current = micReady
     const engine = new window.EngineEvaluat({
       applicationId: warrantRef.current.applicationId,
       userId: String(user.id),
       warrantId: warrantRef.current.warrantId,
-      micAllowCallback: () => { /* 授权成功无需处理 */ },
-      micForbidCallback: () => { clearTimers(); setPhaseSafe('error'); setError('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问') },
+      // engine.js 保证 getUserMedia 成功后先赋值 e._audio.stream 再回调 micAllowCallback，
+      // 因此以它为 stream 就绪信号，startRecord 前 await（闭包捕获本引擎的 micReady，
+      // 避免旧引擎的迟到回调误触发新引擎的信号）
+      micAllowCallback: () => { micReady.resolve() },
+      micForbidCallback: () => {
+        clearTimers()
+        setMicWaiting(false)
+        setPhaseSafe('error')
+        setError('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问')
+        micReady.reject(new Error(MIC_FORBIDDEN_SENTINEL))
+      },
       micVolumeCallback: (v) => setVolume(typeof v === 'number' ? v : 0),
       engineFirstInitDone: () => {
         initRef.current.done = true
@@ -165,6 +188,11 @@ export default function ShadowingEvaluator({ refText }) {
       const engine = ensureEngine()
       await waitInit()
       if (!mountedRef.current) { busyRef.current = false; return }
+      // 等待 getUserMedia 就绪后再 startRecord（见 micReadyRef 注释）；等待期间给用户提示
+      setMicWaiting(true)
+      await micReadyRef.current.promise
+      if (!mountedRef.current) { busyRef.current = false; return }
+      setMicWaiting(false)
       // 先置 recording UI 与定时器，再调 startRecord：
       // 避免 SDK 在 startRecord 内同步触发失败回调/抛错时，后面的 setPhaseSafe('recording') 覆盖错误态
       setPhaseSafe('recording')
@@ -193,6 +221,12 @@ export default function ShadowingEvaluator({ refText }) {
     } catch (e) {
       busyRef.current = false
       clearTimers()
+      setMicWaiting(false)
+      if (e?.message === MIC_FORBIDDEN_SENTINEL) {
+        // micForbidCallback 已展示错误 UI；丢弃该引擎，重试时重新发起 getUserMedia
+        engineRef.current = null
+        return
+      }
       setPhaseSafe('error')
       setError(e.message || '启动评测失败')
     }
@@ -209,6 +243,7 @@ export default function ShadowingEvaluator({ refText }) {
   const retry = useCallback(() => {
     busyRef.current = false
     clearTimers()
+    setMicWaiting(false)
     setPhase('ready')
     setError(null)
     setResult(null)
@@ -222,6 +257,7 @@ export default function ShadowingEvaluator({ refText }) {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      busyRef.current = false
       clearTimeout(timerRef.current)
       clearInterval(secondsRef.current)
       if (engineRef.current) {
@@ -248,10 +284,19 @@ export default function ShadowingEvaluator({ refText }) {
 
       {phase === 'ready' && (
         <div className="flex flex-col items-center space-y-3">
-          <button onClick={start} className="h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95">
-            <Mic className="h-5 w-5" />
-          </button>
-          <span className="text-[11px] font-bold text-slate-500">点击麦克风，朗读这句英文</span>
+          {micWaiting ? (
+            <>
+              <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+              <span className="text-[11px] font-bold text-slate-400">正在获取麦克风权限...</span>
+            </>
+          ) : (
+            <>
+              <button onClick={start} className="h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95">
+                <Mic className="h-5 w-5" />
+              </button>
+              <span className="text-[11px] font-bold text-slate-500">点击麦克风，朗读这句英文</span>
+            </>
+          )}
         </div>
       )}
 
