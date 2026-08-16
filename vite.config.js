@@ -61,6 +61,10 @@ function generateDataIndex() {
       try { topics = JSON.parse(topics) } catch { topics = [topics] }
     }
     if (!topics.length && info.tags) topics = info.tags
+    // info.tags may be a JSON-encoded string (e.g., "[\"tag1\"]")
+    if (typeof topics === 'string') {
+      try { topics = JSON.parse(topics) } catch { topics = [topics] }
+    }
     if (!topics.length && info.topic) topics = [info.topic]
     if (!topics.length && info.category) topics = [info.category]
     topics.forEach(t => allTopics.add(t))
