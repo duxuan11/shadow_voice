@@ -11,6 +11,7 @@ import ClozePage from './pages/ClozePage'
 import LearningRecords from './pages/LearningRecords'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
+import ConversationPage from './pages/ConversationPage'
 import './index.css'
 
 // Route guard: redirect to /login if not authenticated AND not guest
@@ -46,6 +47,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="video/:id/dictation" element={<DictationPage />} />
             <Route path="video/:id/shadowing" element={<ShadowingPage />} />
             <Route path="video/:id/cloze" element={<ClozePage />} />
+            <Route path="video/:id/conversation" element={<ConversationPage />} />
             <Route path="records" element={<LearningRecords />} />
             <Route path="profile" element={<Profile />} />
           </Route>

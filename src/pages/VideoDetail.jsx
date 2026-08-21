@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         ChevronLeft, ChevronRight, Repeat, BookOpen,
         List, Mic, PenTool, Languages, RotateCcw, CheckCircle2, AlertCircle,
-        Heart, Star, X, Gauge, Globe, EyeOff } from 'lucide-react'
+        Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 
 function formatTime(seconds) {
@@ -565,6 +565,13 @@ export default function VideoDetail() {
               {video.level}
             </span>
           )}
+          <button
+            onClick={() => (isGuest ? navigate('/login', { state: { from: `/video/${id}/conversation` } }) : navigate(`/video/${id}/conversation`))}
+            className="flex items-center justify-center w-9 h-9 bg-indigo-600 text-white rounded-lg shrink-0 active:scale-95 ml-2"
+            title="AI 对话"
+          >
+            <MessageCircle className="h-4.5 w-4.5" />
+          </button>
         </div>
 
         {/* ── Mobile Video Player ── */}
@@ -899,6 +906,12 @@ export default function VideoDetail() {
               <button onClick={() => setShowExport(!showExport)}
                 className="flex items-center space-x-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs">
                 <Download className="h-3.5 w-3.5" /><span>导出</span>
+              </button>
+              <button
+                onClick={() => (isGuest ? navigate('/login', { state: { from: `/video/${id}/conversation` } }) : navigate(`/video/${id}/conversation`))}
+                className="flex items-center space-x-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                <MessageCircle className="h-3.5 w-3.5" /><span>💬 AI 对话</span>
               </button>
             </div>
           </div>
