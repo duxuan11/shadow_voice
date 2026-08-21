@@ -179,9 +179,10 @@ function buildReviewPrompt({ topics, history }) {
 // ── 历史组装（DB 行 → AI 消息数组；review 时只送用户轮次 + 最近 2 条 AI）──
 function buildHistory(messages, { forReview = false } = {}) {
   if (forReview) {
+    // DB 行按 id 有序；取最近 2 条 AI + 全部用户轮次，保持原始时间顺序
     const userMsgs = messages.filter(m => m.role === 'user')
     const aiMsgs = messages.filter(m => m.role === 'ai').slice(-2)
-    const all = [...aiMsgs, ...userMsgs].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    const all = [...aiMsgs, ...userMsgs].sort((a, b) => (a.id || 0) - (b.id || 0))
     return all.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))
   }
   return messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))

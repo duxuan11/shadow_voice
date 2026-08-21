@@ -94,3 +94,21 @@ test('buildHistory 组装消息数组', () => {
   assert.equal(h[0].content, 'a')
   assert.equal(h[2].role, 'user')
 })
+
+test('buildHistory forReview 模式按 id 排序并包含用户轮次', () => {
+  const msgs = [
+    { id: 1, role: 'ai', text: 'q1' },
+    { id: 2, role: 'user', text: 'a1' },
+    { id: 3, role: 'ai', text: 'q2' },
+    { id: 4, role: 'user', text: 'a2' },
+    { id: 5, role: 'ai', text: 'q3' },
+  ]
+  const h = buildHistory(msgs, { forReview: true })
+  assert.equal(h.length, 4) // 最近 2 条 AI + 2 条 user
+  assert.equal(h[0].content, 'a1') // id 2
+  assert.equal(h[1].content, 'q2') // id 3
+  assert.equal(h[2].content, 'a2') // id 4
+  assert.equal(h[3].content, 'q3') // id 5
+  assert.equal(h[0].role, 'user')
+  assert.equal(h[1].role, 'assistant')
+})
