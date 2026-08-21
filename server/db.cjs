@@ -2,7 +2,7 @@ const initSqlJs = require('sql.js')
 const fs = require('fs')
 const path = require('path')
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'shadow_voice.db')
+const DB_PATH = process.env.SHADOW_VOICE_DB || path.join(__dirname, '..', 'data', 'shadow_voice.db')
 
 let db = null
 
@@ -60,6 +60,37 @@ function initSchema() {
     completed    INTEGER DEFAULT 0,
     updated_at   TEXT DEFAULT (datetime('now')),
     UNIQUE(user_id, video_id)
+  )`)
+
+  db.run(`CREATE TABLE IF NOT EXISTS conversation_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id TEXT NOT NULL,
+    topics_json TEXT NOT NULL,
+    status TEXT DEFAULT 'active',
+    started_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT,
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`)
+
+  db.run(`CREATE TABLE IF NOT EXISTS conversation_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES conversation_sessions(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    text TEXT NOT NULL,
+    score REAL,
+    issues_json TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`)
+
+  db.run(`CREATE TABLE IF NOT EXISTS ai_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    model TEXT,
+    result TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(video_id, prompt_version)
   )`)
 }
 
