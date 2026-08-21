@@ -112,3 +112,29 @@ test('buildHistory forReview 模式按 id 排序并包含用户轮次', () => {
   assert.equal(h[0].role, 'user')
   assert.equal(h[1].role, 'assistant')
 })
+
+test('回归: buildReplyPrompt 消费 buildHistory 输出(历史真实可见,非 undefined)', () => {
+  const msgs = [
+    { id: 1, role: 'ai', text: 'So you just checked in?' },
+    { id: 2, role: 'user', text: 'Yes, it was quick.' },
+  ]
+  const history = buildHistory(msgs)
+  const p = buildReplyPrompt({ topics: { words: [] }, history })
+  assert.ok(p.user.includes('So you just checked in?'), 'AI 历史应在 prompt 中')
+  assert.ok(p.user.includes('Yes, it was quick.'), '用户历史应在 prompt 中')
+  assert.ok(!p.user.includes('undefined'), '历史不能是 undefined')
+})
+
+test('回归: buildReviewPrompt 消费 buildHistory(forReview) 输出(用户轮次可见)', () => {
+  const msgs = [
+    { id: 1, role: 'ai', text: 'q1' },
+    { id: 2, role: 'user', text: 'I stayed here before' },
+    { id: 3, role: 'ai', text: 'q2' },
+    { id: 4, role: 'user', text: 'the room is very nice' },
+  ]
+  const history = buildHistory(msgs, { forReview: true })
+  const p = buildReviewPrompt({ topics: { words: [] }, history })
+  assert.ok(p.user.includes('I stayed here before'), '用户轮次应在 review prompt 中')
+  assert.ok(p.user.includes('the room is very nice'))
+  assert.ok(!p.user.includes('undefined'), '历史不能是 undefined')
+})

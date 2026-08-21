@@ -126,7 +126,7 @@ function buildReplyPrompt({ topics, history, level }) {
     `key_words: ${(topics.words || []).map(w => w.word).join(', ')}`,
     `key_phrases: ${(topics.phrases || []).map(p => p.phrase).join(', ')}`,
   ].join('\n')
-  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')
+  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content ?? m.text}`).join('\n')
   const user = `${topicText}\n\nConversation so far:\n${historyText}\n\nContinue:`
   return { system: SYSTEM_REPLY, user }
 }
@@ -171,7 +171,7 @@ function buildReviewPrompt({ topics, history }) {
     `key_phrases: ${(topics.phrases || []).map(p => p.phrase).join(', ')}`,
     `collocations: ${(topics.collocations || []).map(c => c.collocation).join(', ')}`,
   ].join('\n')
-  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')
+  const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content ?? m.text}`).join('\n')
   const user = `${topicText}\n\nFull conversation:\n${historyText}\n\nReview the learner's turns.`
   return { system: SYSTEM_REVIEW, user }
 }
