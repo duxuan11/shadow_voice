@@ -7,6 +7,7 @@ const dictationRoutes = require('./routes/dictation.cjs')
 const vocabRoutes = require('./routes/vocab.cjs')
 const progressRoutes = require('./routes/progress.cjs')
 const aliyunRoutes = require('./routes/aliyun.cjs')
+const conversationRoutes = require('./routes/conversation.cjs')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -21,6 +22,7 @@ app.use('/api/dictation', dictationRoutes)
 app.use('/api/vocab', vocabRoutes)
 app.use('/api/progress', progressRoutes)
 app.use('/api/aliyun', aliyunRoutes.router)
+app.use('/api/conversation', conversationRoutes.router)
 
 // Health check
 app.get('/api/health', (req, res) => {
