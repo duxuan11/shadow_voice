@@ -133,17 +133,17 @@ function dataServerPlugin() {
         generated = true
       }
 
-      // Watch for changes in data/videos/ and regenerate
-      server.watcher.add(VIDEOS_DIR)
-      server.watcher.on('add', (filePath) => {
-        if (filePath.includes('/data/videos/') && !filePath.includes('node_modules')) {
+      // Watch for changes in data/videos/ and regenerate.
+      // 用原生 fs.watch 浅监听顶层目录(仅 1 个 inotify 实例,不递归 406 个子目录):
+      // 新增/删除视频目录会触发父目录 rename 事件 → 重建索引。
+      // 不要用 server.watcher.add() —— chokidar 递归会占满 inotify 配额(EMFILE)。
+      const videosWatcher = fs.watch(VIDEOS_DIR, (_event, filename) => {
+        if (filename && !String(filename).includes('node_modules')) {
           generateDataIndex()
         }
       })
-      server.watcher.on('unlink', (filePath) => {
-        if (filePath.includes('/data/videos/') && !filePath.includes('node_modules')) {
-          generateDataIndex()
-        }
+      server.httpServer?.on('close', () => {
+        try { videosWatcher.close() } catch { /* ignore */ }
       })
 
       // Serve /data/ files with Range request support for video seeking
