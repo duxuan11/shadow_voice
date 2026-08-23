@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Clock, Trash2, Play, Star } from 'lucide-react'
+import { BookOpen, Clock, Trash2, Play, Star, MessageSquare } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function LearningRecords() {
@@ -8,6 +8,7 @@ export default function LearningRecords() {
   const { authFetch } = useAuth()
   const [videos, setVideos] = useState([])
   const [vocabulary, setVocabulary] = useState([])
+  const [conversations, setConversations] = useState([])
   const [watchedHistory, setWatchedHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
     catch { return [] }
@@ -26,6 +27,14 @@ export default function LearningRecords() {
     authFetch('/vocab')
       .then(r => r.json())
       .then(data => setVocabulary(data.vocabulary || []))
+      .catch(() => {})
+  }, [])
+
+  // Load AI 对话记录（游客 401 → 空列表）
+  useEffect(() => {
+    authFetch('/conversation/recent')
+      .then(r => (r.ok ? r.json() : { conversations: [] }))
+      .then(data => setConversations(data.conversations || []))
       .catch(() => {})
   }, [])
 
@@ -77,6 +86,14 @@ export default function LearningRecords() {
           <Star size={16} />
           <span>生词本</span>
           <span className="tab-count">{vocabulary.length}</span>
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'conv' ? 'active' : ''}`}
+          onClick={() => setActiveTab('conv')}
+        >
+          <MessageSquare size={16} />
+          <span>AI 对话</span>
+          <span className="tab-count">{conversations.length}</span>
         </button>
       </div>
 
@@ -164,6 +181,36 @@ export default function LearningRecords() {
                       <Trash2 size={14} />
                     </button>
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab === 'conv' && (
+        <div className="records-content">
+          {conversations.length === 0 ? (
+            <div className="empty-state">
+              <p>还没有 AI 对话记录</p>
+              <span className="empty-hint">在视频详情页点「💬 AI 对话」开始练习</span>
+            </div>
+          ) : (
+            <div className="conv-records-list">
+              {conversations.map(c => (
+                <div key={c.id} className="conv-record-item" onClick={() => navigate(`/video/${c.videoId}/conversation?session=${c.id}`)}>
+                  <div className="conv-record-info">
+                    <h3>{c.videoTitle}</h3>
+                    <p className="conv-record-meta">
+                      <span className={`conv-record-status ${c.status === 'completed' ? 'done' : ''}`}>
+                        {c.status === 'completed' ? '已完成' : '进行中'}
+                      </span>
+                      <span>{c.userTurns} 轮</span>
+                      <span>{c.updatedAt ? new Date(c.updatedAt.replace(' ', 'T')).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                    </p>
+                    {c.lastUserText && <p className="conv-record-last">「{c.lastUserText.slice(0, 40)}{c.lastUserText.length > 40 ? '...' : ''}」</p>}
+                    {c.summary && <p className="conv-record-summary">{c.summary}</p>}
+                  </div>
+                  <Play size={18} className="watched-play" />
                 </div>
               ))}
             </div>

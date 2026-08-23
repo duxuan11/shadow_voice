@@ -1,7 +1,7 @@
 // AI 对话引擎：主题提取(Prompt F0) + 开场白(F1) + 回复(F2) + 批量解析(F3)。
 // AI 不可用时走本地降级（禁伪造）。纯函数/可测部分与 AI 调用分离。
 
-const { chat, extractJson, isConfigured, AI_MODEL } = require('./provider.cjs')
+const { chat, extractJson, isConfigured } = require('./provider.cjs')
 
 const PROMPT_VERSION = 'topics-v1'
 
@@ -86,6 +86,16 @@ function localExtractTopics(segments) {
     .slice(0, 10)
     .map(([word, count]) => ({ word, count }))
   // 搭配：本地降级不产出（AI 主路径才产出），保持结构完整
+  // 短语兜底：完全没有短语匹配的视频（实测 ~10.6%）用高频词当目标表达，
+  // 保证「试试用」提示与 missing_expression 解析在这些视频上仍可用
+  if (phrases.length === 0) {
+    for (const w of words.slice(0, 3)) {
+      if (!seenPhrases.has(w.word)) {
+        seenPhrases.add(w.word)
+        phrases.push({ phrase: w.word, meaning: '', example: '', fromWord: true })
+      }
+    }
+  }
   return { words, phrases, collocations: [], source: 'local' }
 }
 
@@ -99,10 +109,18 @@ Rules:
 - Ask an open question so the learner can reply.
 - Do NOT translate into Chinese. Do NOT greet formally. Start with the conversation directly.`
 
+// 中文等级标签 → 英文（prompt 面向英文模型，避免 gpt-4o-mini 等不理解「中级」）
+function mapLearnerLevel(level) {
+  const s = String(level || '')
+  if (/初/.test(s)) return 'beginner'
+  if (/高/.test(s)) return 'advanced'
+  return 'intermediate'
+}
+
 function buildOpeningPrompt({ videoTitle, topics, level }) {
   const topicText = [
     `video_title: ${videoTitle}`,
-    `learner_level: ${level || 'intermediate'}`,
+    `learner_level: ${mapLearnerLevel(level)}`,
     `key_words: ${(topics.words || []).map(w => w.word).join(', ')}`,
     `key_phrases: ${(topics.phrases || []).map(p => p.phrase).join(', ')}`,
     `collocations: ${(topics.collocations || []).map(c => c.collocation).join(', ')}`,
@@ -123,8 +141,10 @@ Rules:
 function buildReplyPrompt({ topics, history, level }) {
   const topicText = [
     `video_title: ${topics.videoTitle || ''}`,
+    `learner_level: ${mapLearnerLevel(level)}`,
     `key_words: ${(topics.words || []).map(w => w.word).join(', ')}`,
     `key_phrases: ${(topics.phrases || []).map(p => p.phrase).join(', ')}`,
+    `collocations: ${(topics.collocations || []).map(c => c.collocation).join(', ')}`,
   ].join('\n')
   const historyText = history.map(m => `${m.role.toUpperCase()}: ${m.content ?? m.text}`).join('\n')
   const user = `${topicText}\n\nConversation so far:\n${historyText}\n\nContinue:`
@@ -157,7 +177,8 @@ Return STRICT JSON only, no markdown, in this exact shape:
 }
 
 Rules:
-- One entry per learner (user) turn. Use the turn number from the transcript.
+- One entry per learner (user) turn. Set "turn" to the learner turn index: 1 for the first learner message, 2 for the second, and so on.
+- Before each message you may see an [id] number in brackets — use it ONLY to disambiguate repeated text; the "turn" field must still be the 1-based learner index.
 - score 0-100: 90+ = excellent, 75-89 = good with small issues, 60-74 = understandable but needs work, <60 = hard to understand.
 - Focus on grammar, word choice, naturalness. Only flag "missing_expression" when the conversation clearly called for a target phrase.
 - Naturalness matters more than perfect grammar. Never say "wrong" harshly.
@@ -179,11 +200,12 @@ function buildReviewPrompt({ topics, history }) {
 // ── 历史组装（DB 行 → AI 消息数组；review 时只送用户轮次 + 最近 2 条 AI）──
 function buildHistory(messages, { forReview = false } = {}) {
   if (forReview) {
-    // DB 行按 id 有序；取最近 2 条 AI + 全部用户轮次，保持原始时间顺序
+    // DB 行按 id 有序；取最近 2 条 AI + 全部用户轮次，保持原始时间顺序。
+    // 每条带 [id] 前缀供 AI 引用消歧（写回按位置映射，不依赖 AI 编号）。
     const userMsgs = messages.filter(m => m.role === 'user')
     const aiMsgs = messages.filter(m => m.role === 'ai').slice(-2)
     const all = [...aiMsgs, ...userMsgs].sort((a, b) => (a.id || 0) - (b.id || 0))
-    return all.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))
+    return all.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: `[${m.id}] ${m.text}` }))
   }
   return messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))
 }

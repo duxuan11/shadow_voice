@@ -8,6 +8,8 @@ const vocabRoutes = require('./routes/vocab.cjs')
 const progressRoutes = require('./routes/progress.cjs')
 const aliyunRoutes = require('./routes/aliyun.cjs')
 const conversationRoutes = require('./routes/conversation.cjs')
+const ttsRoutes = require('./routes/tts.cjs')
+const asrRoutes = require('./routes/asr.cjs')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -23,6 +25,8 @@ app.use('/api/vocab', vocabRoutes)
 app.use('/api/progress', progressRoutes)
 app.use('/api/aliyun', aliyunRoutes.router)
 app.use('/api/conversation', conversationRoutes.router)
+app.use('/api/tts', ttsRoutes.router)
+app.use('/api/asr', asrRoutes.router)
 
 // Health check
 app.get('/api/health', (req, res) => {

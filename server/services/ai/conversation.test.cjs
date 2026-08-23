@@ -105,10 +105,10 @@ test('buildHistory forReview 模式按 id 排序并包含用户轮次', () => {
   ]
   const h = buildHistory(msgs, { forReview: true })
   assert.equal(h.length, 4) // 最近 2 条 AI + 2 条 user
-  assert.equal(h[0].content, 'a1') // id 2
-  assert.equal(h[1].content, 'q2') // id 3
-  assert.equal(h[2].content, 'a2') // id 4
-  assert.equal(h[3].content, 'q3') // id 5
+  assert.equal(h[0].content, '[2] a1') // id 2（带 [id] 前缀供 AI 消歧）
+  assert.equal(h[1].content, '[3] q2') // id 3
+  assert.equal(h[2].content, '[4] a2') // id 4
+  assert.equal(h[3].content, '[5] q3') // id 5
   assert.equal(h[0].role, 'user')
   assert.equal(h[1].role, 'assistant')
 })

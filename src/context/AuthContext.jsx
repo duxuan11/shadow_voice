@@ -4,6 +4,12 @@ const AuthContext = createContext(null)
 
 const API_BASE = '/api'
 
+// 二进制/表单 body：让 fetch 按 body 类型推断 Content-Type（Blob.type / FormData boundary）。
+// 若硬标 application/json，PCM 音频上传会被服务端全局 express.json()（100KB 限制）拦截 → 500
+const isBinaryBody = (body) =>
+  body instanceof Blob || body instanceof FormData || body instanceof URLSearchParams ||
+  body instanceof ArrayBuffer || ArrayBuffer.isView(body)
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('shadow_voice_token'))
@@ -89,23 +95,13 @@ export function AuthProvider({ children }) {
   }
 
   const authFetch = useCallback((url, options = {}) => {
-    if (isGuest) {
-      return fetch(`${API_BASE}${url}`, {
-        ...options,
-        headers: {
-          ...options.headers,
-          'Content-Type': 'application/json'
-        }
-      })
+    const { headers = {}, body, ...rest } = options
+    const finalHeaders = { ...headers }
+    if (!isBinaryBody(body) && !finalHeaders['Content-Type']) {
+      finalHeaders['Content-Type'] = 'application/json'
     }
-    return fetch(`${API_BASE}${url}`, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    if (!isGuest) finalHeaders.Authorization = `Bearer ${token}`
+    return fetch(`${API_BASE}${url}`, { ...rest, body, headers: finalHeaders })
   }, [isGuest, token])
 
   return (

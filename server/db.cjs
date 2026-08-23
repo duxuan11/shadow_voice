@@ -70,6 +70,7 @@ function initSchema() {
     status TEXT DEFAULT 'active',
     started_at TEXT DEFAULT (datetime('now')),
     completed_at TEXT,
+    review_json TEXT,
     updated_at TEXT DEFAULT (datetime('now'))
   )`)
 
@@ -92,6 +93,22 @@ function initSchema() {
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(video_id, prompt_version)
   )`)
+
+  // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
+  ensureColumn('conversation_sessions', 'review_json', 'TEXT')
+}
+
+// sql.js 没有 ALTER TABLE 幂等语法 —— 检查列是否存在，缺失才补
+function ensureColumn(table, column, type) {
+  try {
+    const res = db.exec(`PRAGMA table_info(${table})`)
+    const cols = (res[0]?.values || []).map(r => r[1])
+    if (!cols.includes(column)) {
+      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+    }
+  } catch (err) {
+    console.error(`[db] 迁移 ${table}.${column} 失败:`, err.message)
+  }
 }
 
 // sql.js doesn't auto-save — call this after writes

@@ -21,6 +21,7 @@ export default function ReviewPanel({ review, onRetry, onNewConversation, onBack
     <div className="conv-review">
       <h3 className="conv-review-title">🔍 解析结果</h3>
       {s.summary && <p className="conv-review-summary">{s.summary}</p>}
+      {s.best_turn != null && s.best_turn > 0 && <p className="conv-review-best">🏆 最佳回合：第 {s.best_turn} 句</p>}
 
       {turns.length === 0 && <p className="conv-review-empty">暂无解析结果</p>}
 
