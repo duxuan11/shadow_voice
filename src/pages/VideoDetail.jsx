@@ -6,6 +6,7 @@ import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         List, Mic, PenTool, Languages, RotateCcw, CheckCircle2, AlertCircle,
         Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
+import { recordWatch } from '../utils/watchedHistory'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -92,6 +93,7 @@ export default function VideoDetail() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const playerContainerRef = useRef(null)
   const lastProgressReportRef = useRef(0)
+  const viewRecordedRef = useRef(null)
 
   // ── Data loading ──
   useEffect(() => {
@@ -131,6 +133,16 @@ export default function VideoDetail() {
       }
     }).catch(() => {})
   }, [id, isGuest, authFetch])
+
+  // ── 观看历史（localStorage，游客也记录）──
+  const recordView = useCallback(() => {
+    if (!id || viewRecordedRef.current === id) return
+    viewRecordedRef.current = id
+    recordWatch(id)
+  }, [id])
+
+  // 切换视频时重置，使再次观看同一视频可重新置顶
+  useEffect(() => { viewRecordedRef.current = null }, [id])
 
   // ── Cloze setup ──
   const setupClozeMode = useCallback((sub) => {
@@ -261,6 +273,7 @@ export default function VideoDetail() {
   // ── Video controls ──
   const handleTimeUpdate = () => {
     const vid = videoRef.current; if (!vid) return; const t = vid.currentTime; setCurrentTime(t)
+    if (t > 5) recordView() // 观看超过 5s 也计入历史（未捕获 play 事件的情况，如拖动进度条）
     if (isLooping && currentSub && t >= currentSub.endTime) { vid.currentTime = currentSub.startTime; setCurrentTime(currentSub.startTime) }
     if (loopMode === 'sentence' && loopEnd && t >= loopEnd) vid.currentTime = loopStart || 0
     // Throttled progress report (every 5s, skip guests)
@@ -487,7 +500,7 @@ export default function VideoDetail() {
       <video ref={videoRef} src={videoSrc}
         poster={video.thumbnail_local}
         onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata}
-        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+        onPlay={() => { setPlaying(true); recordView() }} onPause={() => setPlaying(false)}
         onEnded={handleVideoEnded}
         className={`w-full h-full ${isFullscreen ? 'object-contain' : 'object-cover'} cursor-pointer`}
         playsInline preload="auto" />
@@ -511,7 +524,8 @@ export default function VideoDetail() {
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-10 pb-3 px-4 flex flex-col gap-2 opacity-100 transition-opacity z-20">
         {/* Progress bar */}
         <input type="range" min={0} max={duration || 100} step={0.1} value={currentTime} onChange={handleSeekChange}
-          className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-hidden hover:h-1.5 transition-all" />
+          className="w-full h-1 rounded-lg appearance-none cursor-pointer accent-purple-500 focus:outline-hidden progress-slider"
+          style={{ '--progress': `${duration ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
         {/* Controls row */}
         <div className="flex items-center justify-between">
           <span className="text-white/90 font-mono text-[10px] tracking-wide">
