@@ -1,49 +1,85 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
-const { getDb, get, run } = require('../db.cjs')
+const rateLimit = require('express-rate-limit')
+const { getDb, get, all, run } = require('../db.cjs')
 const { signToken, authMiddleware } = require('../auth.cjs')
 
 const router = express.Router()
 
+const registerLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '注册尝试过于频繁，请稍后再试' },
+})
+
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请稍后再试' },
+})
+
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body
+router.post('/register', registerLimiter, async (req, res) => {
+  const username = (req.body.username || '').trim()
+  const email = (req.body.email || '').trim()
+  const password = req.body.password || ''
 
   if (!username || !email || !password) {
     return res.status(400).json({ error: '请填写所有字段' })
+  }
+  if (!USERNAME_RE.test(username)) {
+    return res.status(400).json({ error: '用户名需为 3-20 位字母、数字或下划线' })
+  }
+  if (!EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: '邮箱格式不正确' })
   }
   if (password.length < 6) {
     return res.status(400).json({ error: '密码至少6位' })
   }
 
   await getDb()
-  const existing = get('SELECT id FROM users WHERE username = ? OR email = ?', [username, email])
-  if (existing) {
-    return res.status(409).json({ error: '用户名或邮箱已被注册' })
+  if (get('SELECT id FROM users WHERE username = ?', [username])) {
+    return res.status(409).json({ error: '用户名已被注册' })
+  }
+  if (get('SELECT id FROM users WHERE email = ?', [email])) {
+    return res.status(409).json({ error: '邮箱已被注册' })
   }
 
-  const hash = bcrypt.hashSync(password, 10)
-  const result = run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hash])
+  const hash = await bcrypt.hash(password, 10)
+  let result
+  try {
+    result = run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hash])
+  } catch {
+    return res.status(409).json({ error: '用户名或邮箱已被注册' })
+  }
 
   const token = signToken(result.lastInsertRowid)
   res.json({ token, user: { id: result.lastInsertRowid, username, email } })
 })
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body
+router.post('/login', loginLimiter, async (req, res) => {
+  const identifier = (req.body.username || req.body.email || '').trim()
+  const password = req.body.password || ''
 
-  if (!username || !password) {
-    return res.status(400).json({ error: '请填写用户名和密码' })
+  if (!identifier || !password) {
+    return res.status(400).json({ error: '请填写用户名/邮箱和密码' })
   }
 
   await getDb()
-  const user = get('SELECT * FROM users WHERE username = ?', [username])
+  const user = get('SELECT * FROM users WHERE username = ? OR email = ?', [identifier, identifier])
   if (!user) {
     return res.status(401).json({ error: '用户名或密码错误' })
   }
 
-  if (!bcrypt.compareSync(password, user.password)) {
+  if (!(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: '用户名或密码错误' })
   }
 

@@ -1,7 +1,14 @@
 const jwt = require('jsonwebtoken')
 
-const JWT_SECRET = process.env.JWT_SECRET || 'shadow-voice-dev-secret-change-in-production'
+const DEV_SECRET = 'shadow-voice-dev-secret-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET || DEV_SECRET
 const JWT_EXPIRES = '30d'
+
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEV_SECRET) {
+    throw new Error('生产环境必须设置 JWT_SECRET 环境变量，且不能使用默认开发密钥')
+  }
+}
 
 function signToken(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
