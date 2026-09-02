@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 
+const { getDb } = require('./db.cjs')
 const authRoutes = require('./routes/auth.cjs')
 const dictationRoutes = require('./routes/dictation.cjs')
 const vocabRoutes = require('./routes/vocab.cjs')
@@ -29,8 +30,15 @@ app.use('/api/tts', ttsRoutes.router)
 app.use('/api/asr', asrRoutes.router)
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() })
+app.get('/api/health', async (req, res) => {
+  try {
+    const db = await getDb()
+    db.exec('SELECT 1')
+    res.json({ ok: true, db: 'ok', time: new Date().toISOString() })
+  } catch (err) {
+    console.error('Health check failed:', err)
+    res.status(503).json({ ok: false, db: 'error', time: new Date().toISOString() })
+  }
 })
 
 // API 404 — return JSON, never the SPA

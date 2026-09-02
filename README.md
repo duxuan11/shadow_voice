@@ -139,9 +139,15 @@ shadow_voice/
 │   ├── db.cjs                   # SQLite 数据库层
 │   ├── auth.cjs                 # JWT 认证中间件
 │   └── routes/
-│       ├── auth.cjs             # 注册/登录/获取用户
+│       ├── auth.cjs             # 注册/登录/获取用户/学习统计
 │       ├── dictation.cjs        # 听写进度 CRUD
-│       └── vocab.cjs            # 生词本 CRUD
+│       ├── vocab.cjs            # 生词本 CRUD
+│       ├── progress.cjs         # 视频观看进度
+│       ├── aliyun.cjs           # 阿里云口语评测授权
+│       ├── conversation.cjs     # AI 对话会话
+│       ├── tts.cjs              # 文本转语音
+│       ├── asr.cjs              # 语音转文字
+│       └── *.test.cjs           # 路由单元测试
 │
 ├── src/                         # 前端 React 应用
 │   ├── main.jsx                 # 入口 + 路由配置
@@ -154,6 +160,7 @@ shadow_voice/
 │       ├── VideoDetail.jsx      # 视频播放 + 双语字幕 + 查词
 │       ├── DictationPage.jsx    # 听写模式（核心特色）
 │       ├── LearningRecords.jsx  # 学习记录（观看历史/生词本）
+│       ├── Profile.jsx          # 个人资料页（学习统计）
 │       └── Login.jsx            # 登录/注册页面
 │
 ├── public/                      # 静态资源
@@ -187,15 +194,28 @@ shadow_voice/
 
 | 方法 | 路径 | 说明 | 认证 |
 |---|---|---|---|
-| POST | `/api/auth/register` | 注册 | ❌ |
-| POST | `/api/auth/login` | 登录 | ❌ |
+| POST | `/api/auth/register` | 注册（限流 5 次/5分钟/IP） | ❌ |
+| POST | `/api/auth/login` | 登录（用户名或邮箱，限流 10 次/5分钟/IP） | ❌ |
 | GET | `/api/auth/me` | 获取当前用户 | ✅ |
+| GET | `/api/auth/stats` | 学习统计（听写次数/生词数/平均分） | ✅ |
 | GET | `/api/dictation/:videoId` | 获取听写进度 | ✅ |
 | PUT | `/api/dictation/:videoId` | 保存听写进度 | ✅ |
 | GET | `/api/vocab` | 获取生词列表 | ✅ |
 | POST | `/api/vocab` | 添加生词 | ✅ |
 | DELETE | `/api/vocab/:word` | 删除生词 | ✅ |
-| GET | `/api/health` | 健康检查 | ❌ |
+| GET | `/api/progress/:videoId` | 获取视频观看进度 | ✅ |
+| PUT | `/api/progress/:videoId` | 保存视频观看进度 | ✅ |
+| POST | `/api/conversation/start` | 开始 AI 对话会话 | ✅ |
+| GET | `/api/conversation/recent` | 最近的对话会话 | ✅ |
+| POST | `/api/conversation/:sessionId/reply` | 发送对话消息 | ✅ |
+| POST | `/api/conversation/:sessionId/review` | 生成会话回顾 | ✅ |
+| GET | `/api/conversation/:sessionId` | 获取会话详情 | ✅ |
+| POST | `/api/aliyun/authorize` | 阿里云口语评测授权 | ✅ |
+| GET | `/api/tts/status` | TTS 服务状态 | ✅ |
+| POST | `/api/tts/synthesize` | 文本转语音 | ✅ |
+| GET | `/api/asr/status` | 语音识别服务状态 | ✅ |
+| POST | `/api/asr/recognize` | 语音转文字（PCM） | ✅ |
+| GET | `/api/health` | 健康检查（校验数据库连通性） | ❌ |
 
 ---
 
