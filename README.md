@@ -46,7 +46,7 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
   3. **电脑/本机调试**：`http://localhost:3001` 本身就是安全上下文，可直接用电脑浏览器测试跟读评测。
 
 ### 📊 学习记录
-- **观看历史**：最近看过的 50 个视频
+- **观看历史**：最近看过的 50 个视频（登录用户存服务端，手机/电脑互通；游客仅存本机）
 - **生词本**：收藏的所有单词，按时间倒序，可删除
 - **听写进度**（已关联到每个视频）
 
@@ -143,6 +143,7 @@ shadow_voice/
 │       ├── dictation.cjs        # 听写进度 CRUD
 │       ├── vocab.cjs            # 生词本 CRUD
 │       ├── progress.cjs         # 视频观看进度
+│       ├── history.cjs          # 观看历史（登录用户跨设备同步）
 │       ├── aliyun.cjs           # 阿里云口语评测授权
 │       ├── conversation.cjs     # AI 对话会话
 │       ├── tts.cjs              # 文本转语音
@@ -205,6 +206,10 @@ shadow_voice/
 | DELETE | `/api/vocab/:word` | 删除生词 | ✅ |
 | GET | `/api/progress/:videoId` | 获取视频观看进度 | ✅ |
 | PUT | `/api/progress/:videoId` | 保存视频观看进度 | ✅ |
+| GET | `/api/history` | 获取观看历史（最近 50 条） | ✅ |
+| POST | `/api/history/:videoId` | 记录一次观看 | ✅ |
+| POST | `/api/history/merge` | 合并本机旧观看历史到账号 | ✅ |
+| DELETE | `/api/history` | 清空观看历史 | ✅ |
 | POST | `/api/conversation/start` | 开始 AI 对话会话 | ✅ |
 | GET | `/api/conversation/recent` | 最近的对话会话 | ✅ |
 | POST | `/api/conversation/:sessionId/reply` | 发送对话消息 | ✅ |

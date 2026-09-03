@@ -5,13 +5,16 @@ import { useAuth } from '../context/AuthContext'
 
 export default function LearningRecords() {
   const navigate = useNavigate()
-  const { authFetch } = useAuth()
+  const { authFetch, isGuest } = useAuth()
   const [videos, setVideos] = useState([])
   const [vocabulary, setVocabulary] = useState([])
   const [conversations, setConversations] = useState([])
   const [watchedHistory, setWatchedHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
-    catch { return [] }
+    if (isGuest) {
+      try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
+      catch { return [] }
+    }
+    return []
   })
   const [activeTab, setActiveTab] = useState('watched')
 
@@ -30,6 +33,15 @@ export default function LearningRecords() {
       .catch(() => {})
   }, [])
 
+  // 观看历史：登录用户从服务端拉取（跨设备同步）；游客读 localStorage
+  useEffect(() => {
+    if (isGuest) return
+    authFetch('/history')
+      .then(r => r.json())
+      .then(data => setWatchedHistory(data.history || []))
+      .catch(() => {})
+  }, [authFetch, isGuest])
+
   // Load AI 对话记录（游客 401 → 空列表）
   useEffect(() => {
     authFetch('/conversation/recent')
@@ -43,8 +55,14 @@ export default function LearningRecords() {
     .filter(Boolean)
 
   const clearWatched = () => {
-    setWatchedHistory([])
-    localStorage.setItem('shadow_voice_watched', '[]')
+    if (isGuest) {
+      setWatchedHistory([])
+      localStorage.setItem('shadow_voice_watched', '[]')
+    } else {
+      authFetch('/history', { method: 'DELETE' })
+        .then(() => setWatchedHistory([]))
+        .catch(() => {})
+    }
   }
 
   const clearVocabulary = () => {
