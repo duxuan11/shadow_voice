@@ -44,6 +44,23 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }
 
+  // 登录/注册成功后，把本机 localStorage 里累积的观看历史一次性并入账号
+  const mergeLocalHistory = useCallback(async (authToken) => {
+    let local
+    try { local = JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') } catch { local = [] }
+    if (!Array.isArray(local) || local.length === 0) return
+    try {
+      const res = await fetch(`${API_BASE}/history/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ ids: local })
+      })
+      if (res.ok) localStorage.removeItem('shadow_voice_watched')
+    } catch {
+      // 合并失败不阻塞登录
+    }
+  }, [])
+
   const login = async (username, password) => {
     setIsGuest(false)
     sessionStorage.removeItem('shadow_voice_guest')
@@ -62,6 +79,7 @@ export function AuthProvider({ children }) {
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('shadow_voice_token', data.token)
+    mergeLocalHistory(data.token)
     return data.user
   }
 
@@ -83,6 +101,7 @@ export function AuthProvider({ children }) {
     setToken(data.token)
     setUser(data.user)
     localStorage.setItem('shadow_voice_token', data.token)
+    mergeLocalHistory(data.token)
     return data.user
   }
 

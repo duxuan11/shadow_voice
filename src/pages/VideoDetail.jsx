@@ -134,12 +134,16 @@ export default function VideoDetail() {
     }).catch(() => {})
   }, [id, isGuest, authFetch])
 
-  // ── 观看历史（localStorage，游客也记录）──
+  // ── 观看历史（游客写 localStorage；登录用户写服务端，跨设备同步）──
   const recordView = useCallback(() => {
     if (!id || viewRecordedRef.current === id) return
     viewRecordedRef.current = id
-    recordWatch(id)
-  }, [id])
+    if (isGuest) {
+      recordWatch(id)
+    } else {
+      authFetch(`/history/${id}`, { method: 'POST' }).catch(() => {})
+    }
+  }, [id, isGuest, authFetch])
 
   // 切换视频时重置，使再次观看同一视频可重新置顶
   useEffect(() => { viewRecordedRef.current = null }, [id])

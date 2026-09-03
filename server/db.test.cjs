@@ -15,7 +15,7 @@ test('新表在初始化后全部存在', async () => {
   const rows = db.all("SELECT name FROM sqlite_master WHERE type='table'")
   const names = rows.map(r => r.name)
   for (const t of ['users', 'dictation_records', 'vocabulary', 'video_progress',
-    'conversation_sessions', 'conversation_messages', 'ai_cache']) {
+    'conversation_sessions', 'conversation_messages', 'ai_cache', 'watch_history']) {
     assert.ok(names.includes(t), `缺少表 ${t}`)
   }
 })

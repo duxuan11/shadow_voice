@@ -84,6 +84,14 @@ function initSchema() {
     created_at TEXT DEFAULT (datetime('now'))
   )`)
 
+  db.run(`CREATE TABLE IF NOT EXISTS watch_history (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id   TEXT NOT NULL,
+    watched_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id)
+  )`)
+
   db.run(`CREATE TABLE IF NOT EXISTS ai_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     video_id TEXT NOT NULL,

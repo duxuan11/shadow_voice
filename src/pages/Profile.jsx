@@ -12,23 +12,28 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Watched history from localStorage
-  const [watchedHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
-    catch { return [] }
+  // Watched history：登录用户从服务端取（跨设备同步），游客读 localStorage
+  const [watchedHistory, setWatchedHistory] = useState(() => {
+    if (isGuest) {
+      try { return JSON.parse(localStorage.getItem('shadow_voice_watched') || '[]') }
+      catch { return [] }
+    }
+    return []
   })
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [videosRes, statsRes, vocabRes] = await Promise.all([
+        const [videosRes, statsRes, vocabRes, historyRes] = await Promise.all([
           fetch('/data/consolidated.json').then(r => r.json()),
           isGuest ? Promise.resolve(null) : authFetch('/auth/stats').then(r => r.json()).catch(() => null),
           isGuest ? Promise.resolve({ vocabulary: [] }) : authFetch('/vocab').then(r => r.json()).catch(() => ({ vocabulary: [] })),
+          isGuest ? Promise.resolve(null) : authFetch('/history').then(r => r.json()).catch(() => null),
         ])
         setVideos(videosRes)
         setStats(statsRes)
         setVocabulary(vocabRes.vocabulary || [])
+        if (historyRes && historyRes.history) setWatchedHistory(historyRes.history)
       } catch {
         setError('加载数据失败')
       } finally {
