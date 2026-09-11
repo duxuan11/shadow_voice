@@ -32,9 +32,18 @@ global.fetch = async (url, opts = {}) => {
   if (!String(url).includes('/chat/completions')) return realFetch(url, opts)
   if (fetchMode === 'fail') throw new Error('mock network down')
   const body = JSON.parse(opts.body)
+  const sysContent = body.messages[0].content
   const userContent = body.messages[1].content
   let content
-  if (userContent.includes('Review the learner')) {
+  if (sysContent.includes('design a role-play scenario')) {
+    content = JSON.stringify({
+      scene: 'Hotel Check-in', sceneCn: '酒店入住',
+      setting: 'front desk', userRole: 'guest', userRoleCn: '客人',
+      aiRole: 'front desk receptionist', aiRoleCn: '前台接待',
+      context: 'check in', contextCn: '办理入住',
+      coreExpressions: [{ phrase: 'check in', meaning: '办理入住' }],
+    })
+  } else if (userContent.includes('Review the learner')) {
     content = JSON.stringify({
       turns: [
         { turn: 1, score: 80, issues: [{ type: 'grammar', location: 'x', problem: 'p', suggestion: 's', better: 'b' }], praise: 'good' },
@@ -221,4 +230,37 @@ test('A5：GET /recent 返回最近会话列表（含视频标题/轮数/摘要�
   assert.ok(c.videoTitle)
   assert.ok(c.userTurns >= 1)
   assert.equal(c.status, 'completed')
+})
+
+test('场景：/start 提取场景并落库 scene_json + 返回 scene', async () => {
+  const res = await fetch(`${baseUrl}/api/conversation/start`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ videoId: 'v1', newSession: true }),
+  })
+  assert.equal(res.status, 201)
+  const body = await res.json()
+  assert.equal(body.scene.scene, 'Hotel Check-in')
+  assert.equal(body.scene.aiRole, 'front desk receptionist')
+  const sess = get('SELECT scene_json FROM conversation_sessions WHERE id=?', [body.session.id])
+  assert.ok(sess.scene_json)
+  assert.equal(JSON.parse(sess.scene_json).scene, 'Hotel Check-in')
+})
+
+test('场景：GET /:sessionId 返回 scene', async () => {
+  const sid = seedSession()
+  run('UPDATE conversation_sessions SET scene_json=? WHERE id=?',
+    [JSON.stringify({ scene: 'Hotel Check-in', aiRole: 'front desk receptionist' }), sid])
+  const res = await fetch(`${baseUrl}/api/conversation/${sid}`, { headers: authHeaders() })
+  const data = await res.json()
+  assert.equal(data.scene.scene, 'Hotel Check-in')
+})
+
+test('场景：无 scene_json 的旧会话 GET 返回 scene=null 且 reply 正常', async () => {
+  const sid = seedSession()
+  const res = await fetch(`${baseUrl}/api/conversation/${sid}`, { headers: authHeaders() })
+  const data = await res.json()
+  assert.equal(data.scene, null)
+  const reply = await fetch(`${baseUrl}/api/conversation/${sid}/reply`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ text: 'Yes, the concierge took our bags' }),
+  })
+  assert.equal(reply.status, 200)
 })

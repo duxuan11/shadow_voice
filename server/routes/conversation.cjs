@@ -5,7 +5,9 @@ const { getDb, run, get, all } = require('../db.cjs')
 const { authMiddleware } = require('../auth.cjs')
 const {
   PROMPT_VERSION,
+  SCENE_PROMPT_VERSION,
   extractConversationTopics,
+  extractSceneProfile,
   buildOpeningPrompt,
   buildReplyPrompt,
   buildReviewPrompt,
@@ -64,6 +66,34 @@ async function getTopicsForVideo(videoId, video) {
   return { ...topics, fromCache: false }
 }
 
+// ── 场景提取（ai_cache 按 video_id + SCENE_PROMPT_VERSION 缓存）──
+async function getSceneForVideo(videoId, video) {
+  const cached = get('SELECT result FROM ai_cache WHERE video_id=? AND prompt_version=?', [videoId, SCENE_PROMPT_VERSION])
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached.result)
+      if (parsed && parsed.scene) return { ...parsed, fromCache: true }
+    } catch { /* 缓存损坏则重新提取 */ }
+  }
+  const subs = loadSubtitles(video.episode_dir)
+    .map((s, i) => ({ segmentIndex: i, textEn: s.textEn, textCn: s.textCn, startTime: s.startTime }))
+    .filter((s) => s.textEn && s.textEn.trim())
+  const scene = await extractSceneProfile({
+    videoTitle: video.title,
+    description: video.description || '',
+    topic: video.topic || '',
+    topics: video.topics || [],
+    level: video.level,
+    segments: subs,
+  })
+  run(
+    `INSERT INTO ai_cache (video_id, prompt_version, model, result) VALUES (?,?,?,?)
+     ON CONFLICT(video_id, prompt_version) DO UPDATE SET result=excluded.result, model=excluded.model, created_at=datetime('now')`,
+    [videoId, SCENE_PROMPT_VERSION, scene.source === 'ai' ? 'llm' : 'local-heuristic', JSON.stringify(scene)]
+  )
+  return { ...scene, fromCache: false }
+}
+
 // ── 会话归属 ────────────────────────────────────────────
 function requireOwnSession(req, res, sessionId) {
   const row = get('SELECT * FROM conversation_sessions WHERE id=?', [sessionId])
@@ -81,10 +111,12 @@ function completeSession(sessionId) {
 }
 
 // ── 目标表达：本轮提示用户尝试的短语（round-robin 轮换）──
-function pickTargetPhrase(topics, userCount) {
+function pickTargetPhrase(scene, topics, userCount) {
+  const expressions = (scene && Array.isArray(scene.coreExpressions)) ? scene.coreExpressions : []
   const phrases = Array.isArray(topics.phrases) ? topics.phrases : []
-  if (phrases.length === 0) return null
-  const p = phrases[userCount % phrases.length]
+  const pool = expressions.length > 0 ? expressions : phrases
+  if (pool.length === 0) return null
+  const p = pool[userCount % pool.length]
   return { phrase: p.phrase, meaning: p.meaning || '' }
 }
 
@@ -109,9 +141,12 @@ router.post('/start', authMiddleware, async (req, res) => {
         const cnt = get('SELECT COUNT(*) c FROM conversation_messages WHERE session_id=?', [existing.id])
         if (cnt.c > 0) {
           const topics = JSON.parse(existing.topics_json || '{}')
+          let scene = null
+          if (existing.scene_json) { try { scene = JSON.parse(existing.scene_json) } catch { scene = null } }
           return res.status(200).json({
             session: { id: existing.id, videoId: existing.video_id, status: existing.status },
             topics,
+            scene,
             opening: null,
             resumed: true,
             aiUnavailable: !isConfigured(),
@@ -124,9 +159,10 @@ router.post('/start', authMiddleware, async (req, res) => {
     }
 
     const topics = await getTopicsForVideo(videoId, video)
+    const scene = await getSceneForVideo(videoId, video)
     const r = run(
-      'INSERT INTO conversation_sessions (user_id, video_id, topics_json) VALUES (?,?,?)',
-      [req.userId, videoId, JSON.stringify(topics)]
+      'INSERT INTO conversation_sessions (user_id, video_id, topics_json, scene_json) VALUES (?,?,?,?)',
+      [req.userId, videoId, JSON.stringify(topics), JSON.stringify(scene)]
     )
     const session = get('SELECT * FROM conversation_sessions WHERE id=?', [r.lastInsertRowid])
 
@@ -134,7 +170,7 @@ router.post('/start', authMiddleware, async (req, res) => {
     let aiUnavailable = false
     if (isConfigured()) {
       try {
-        const prompt = buildOpeningPrompt({ videoTitle: video.title, topics, level: video.level })
+        const prompt = buildOpeningPrompt({ videoTitle: video.title, topics, level: video.level, scene })
         const content = await chat(
           [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }],
           { temperature: 0.7, maxTokens: 200 }
@@ -164,6 +200,7 @@ router.post('/start', authMiddleware, async (req, res) => {
     res.status(201).json({
       session: { id: session.id, videoId: session.video_id, status: session.status },
       topics,
+      scene,
       opening,
       aiUnavailable,
     })
@@ -232,9 +269,11 @@ router.post('/:sessionId/reply', authMiddleware, async (req, res) => {
     // 历史 = 现有消息 + 待发送的 user 消息（虚拟追加，AI 成功后才真正落库）
     const messages = all('SELECT * FROM conversation_messages WHERE session_id=? ORDER BY id', [session.id])
     const topics = JSON.parse(session.topics_json || '{}')
+    let scene = null
+    if (session.scene_json) { try { scene = JSON.parse(session.scene_json) } catch { scene = null } }
     const video = findVideo(session.video_id)
     const history = buildHistory([...messages.map(m => ({ role: m.role, text: m.text })), { role: 'user', text: userText }])
-    const prompt = buildReplyPrompt({ topics: { ...topics, videoTitle: video ? video.title : '' }, history, level: video ? video.level : undefined })
+    const prompt = buildReplyPrompt({ topics: { ...topics, videoTitle: video ? video.title : '' }, history, level: video ? video.level : undefined, scene })
 
     let aiReply
     try {
@@ -260,7 +299,7 @@ router.post('/:sessionId/reply', authMiddleware, async (req, res) => {
     touchSession(session.id)
 
     const updated = all('SELECT * FROM conversation_messages WHERE session_id=? ORDER BY id', [session.id])
-    const targetPhrase = pickTargetPhrase(topics, userCount)
+    const targetPhrase = pickTargetPhrase(scene, topics, userCount)
     res.json({ aiReply, history: updated, targetPhrase })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -347,6 +386,8 @@ router.get('/:sessionId', authMiddleware, async (req, res) => {
     if (session.review_json) {
       try { review = JSON.parse(session.review_json) } catch { /* 忽略损坏 */ }
     }
+    let scene = null
+    if (session.scene_json) { try { scene = JSON.parse(session.scene_json) } catch { /* 忽略损坏 */ } }
     res.json({
       session: {
         id: session.id,
@@ -359,6 +400,7 @@ router.get('/:sessionId', authMiddleware, async (req, res) => {
       },
       topics: (() => { try { return JSON.parse(session.topics_json || '{}') } catch { return {} } })(),
       messages,
+      scene,
       aiUnavailable: !isConfigured(),
     })
   } catch (err) {
