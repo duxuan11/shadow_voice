@@ -3,11 +3,14 @@ const assert = require('node:assert/strict')
 
 const {
   PROMPT_VERSION,
+  SCENE_PROMPT_VERSION,
   buildTopicsPrompt,
+  buildScenePrompt,
   buildOpeningPrompt,
   buildReplyPrompt,
   buildReviewPrompt,
   localExtractTopics,
+  localDetectScene,
   buildHistory,
 } = require('./conversation.cjs')
 
@@ -137,4 +140,56 @@ test('回归: buildReviewPrompt 消费 buildHistory(forReview) 输出(用户轮�
   assert.ok(p.user.includes('I stayed here before'), '用户轮次应在 review prompt 中')
   assert.ok(p.user.includes('the room is very nice'))
   assert.ok(!p.user.includes('undefined'), '历史不能是 undefined')
+})
+
+test('SCENE_PROMPT_VERSION 稳定用于场景缓存键', () => {
+  assert.equal(SCENE_PROMPT_VERSION, 'scene-v1')
+})
+
+test('buildScenePrompt 包含标题/描述/话题/字幕', () => {
+  const p = buildScenePrompt({ videoTitle: '酒店日常', description: '出国旅行酒店英语', topic: '旅游出行', topics: ['旅行'], level: '初级', segments })
+  assert.ok(p.system.includes('design a role-play scenario'))
+  assert.ok(p.user.includes('酒店日常'))
+  assert.ok(p.user.includes('出国旅行酒店英语'))
+  assert.ok(p.user.includes('checked in'))
+})
+
+test('localDetectScene 酒店关键词 → 前台场景', () => {
+  const s = localDetectScene({ videoTitle: '酒店英语课程', description: '如何在酒店办理入住', topic: '出行', topics: ['旅行'] })
+  assert.equal(s.scene, 'Hotel Check-in')
+  assert.equal(s.aiRole, 'front desk receptionist')
+  assert.equal(s.userRole, 'guest')
+  assert.equal(s.source, 'local')
+  assert.ok(Array.isArray(s.coreExpressions) && s.coreExpressions.length >= 1)
+})
+
+test('localDetectScene 无匹配 → 通用场景兜底', () => {
+  const s = localDetectScene({ videoTitle: '海边风景', description: '', topic: '自然风光', topics: [] })
+  assert.ok(s.scene)
+  assert.ok(s.aiRole)
+  assert.ok(s.userRole)
+  assert.equal(s.source, 'local')
+})
+
+test('buildOpeningPrompt 有 scene → 角色扮演 system prompt + 场景信息', () => {
+  const scene = { scene: 'Hotel Check-in', setting: 'hotel front desk', userRole: 'guest', aiRole: 'front desk receptionist', context: 'check in', coreExpressions: [{ phrase: 'check in', meaning: '办理入住' }] }
+  const p = buildOpeningPrompt({ videoTitle: '酒店日常', topics: { words: [] }, level: '中级', scene })
+  assert.ok(p.system.includes('Stay in character'))
+  assert.ok(p.user.includes('front desk receptionist'))
+  assert.ok(p.user.includes('guest'))
+  assert.ok(p.user.includes('check in'))
+})
+
+test('buildOpeningPrompt 无 scene → 原自由对话 prompt（向后兼容）', () => {
+  const p = buildOpeningPrompt({ videoTitle: '酒店日常', topics: { words: [] }, level: '中级' })
+  assert.ok(p.system.includes('conversation partner'))
+  assert.ok(!p.system.includes('Stay in character'))
+})
+
+test('buildReplyPrompt 有 scene → 保持角色', () => {
+  const history = [{ role: 'ai', text: 'q' }, { role: 'user', text: 'a' }]
+  const scene = { scene: 'Hotel Check-in', aiRole: 'front desk receptionist' }
+  const p = buildReplyPrompt({ topics: { words: [] }, history, scene })
+  assert.ok(p.system.includes('Stay in character'))
+  assert.ok(p.user.includes('front desk receptionist'))
 })
