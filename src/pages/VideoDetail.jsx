@@ -7,6 +7,7 @@ import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
+import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -103,7 +104,7 @@ export default function VideoDetail() {
       if (found) {
         const subsUrl = `/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`
         fetch(subsUrl).then(r => r.json()).then(subs => {
-          setVideo({ ...found, subtitles: Array.isArray(subs) ? subs : [] })
+          setVideo({ ...found, subtitles: mergeAdjacentDuplicateSubtitles(Array.isArray(subs) ? subs : []) })
           setLoading(false)
         }).catch(() => {
           setVideo({ ...found, subtitles: [] })
