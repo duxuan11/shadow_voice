@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RotateCcw, EyeOff, Eye, ChevronLeft, ChevronRight, Volume2, Send, SkipForward, Headphones } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -89,8 +90,10 @@ export default function DictationPage() {
         fetch(`/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`)
           .then(r => r.json())
           .then(rawSubs => {
-            const subs = (Array.isArray(rawSubs) ? rawSubs : []).filter(
-              s => s.textEn && s.textEn.trim()
+            const subs = mergeAdjacentDuplicateSubtitles(
+              (Array.isArray(rawSubs) ? rawSubs : []).filter(
+                s => s.textEn && s.textEn.trim()
+              )
             )
             if (subs.length === 0) {
               setError('该视频没有可用的英文字幕')
