@@ -20,6 +20,7 @@ export default function ConversationPage() {
   const [subs, setSubs] = useState([])
   const [session, setSession] = useState(null)
   const [topics, setTopics] = useState(null)
+  const [scene, setScene] = useState(null)
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -121,6 +122,7 @@ export default function ConversationPage() {
       if (!res.ok) { setError(data.error || '加载会话失败'); setLoading(false); return }
       setSession({ id: data.session.id, videoId: data.session.videoId, status: data.session.status })
       setTopics(data.topics || null)
+      setScene(data.scene || null)
       setMessages(data.messages || [])
       setAiUnavailable(!!data.aiUnavailable)
       if (data.session.review) setReview(data.session.review)
@@ -161,6 +163,7 @@ export default function ConversationPage() {
       if (!res.ok) { setError(data.error || '启动对话失败'); setLoading(false); return }
       setSession(data.session)
       setTopics(data.topics)
+      setScene(data.scene || null)
       setAiUnavailable(data.aiUnavailable)
       if (data.resumed) {
         // 恢复进行中的会话：拉历史，不重复开场白
@@ -327,6 +330,7 @@ export default function ConversationPage() {
     setReview(null)
     setMessages([])
     setTopics(null)
+    setScene(null)
     setHint(null)
     setOpenTopic(null)
     setCurrentSubIdx(-1)
@@ -374,6 +378,36 @@ export default function ConversationPage() {
 
       {!error && (
         <>
+          {/* 场景横幅（视频 → AI Role Play） */}
+          {scene && scene.scene && (
+            <div className="conv-scene">
+              <div className="conv-scene-head">
+                <span className="conv-scene-icon">🎭</span>
+                <b className="conv-scene-title">{scene.sceneCn || scene.scene}</b>
+                {scene.sceneCn && scene.scene && scene.sceneCn !== scene.scene && (
+                  <span className="conv-scene-en">{scene.scene}</span>
+                )}
+              </div>
+              <div className="conv-scene-roles">
+                <span className="conv-scene-role">你扮演：<b>{scene.userRoleCn || scene.userRole}</b></span>
+                <span className="conv-scene-role">AI 扮演：<b>{scene.aiRoleCn || scene.aiRole}</b></span>
+              </div>
+              {(scene.contextCn || scene.context) && (
+                <p className="conv-scene-context">{scene.contextCn || scene.context}</p>
+              )}
+              {Array.isArray(scene.coreExpressions) && scene.coreExpressions.length > 0 && (
+                <div className="conv-scene-exprs">
+                  {scene.coreExpressions.map((e, i) => (
+                    <span key={i} className="conv-scene-expr">
+                      {e.phrase}
+                      {e.meaning ? <em>{e.meaning}</em> : null}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* A2：视频回看面板 */}
           {showVideo && video && (
             <div className="conv-video-panel">

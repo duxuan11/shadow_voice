@@ -104,6 +104,8 @@ function initSchema() {
 
   // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
+  // 新增：场景档案列（视频 → AI Role Play）
+  ensureColumn('conversation_sessions', 'scene_json', 'TEXT')
 }
 
 // sql.js 没有 ALTER TABLE 幂等语法 —— 检查列是否存在，缺失才补
