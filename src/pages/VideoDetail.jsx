@@ -8,6 +8,7 @@ import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
 import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
+import { extractChunks, CHUNK_TYPE_LABELS } from '../utils/chunks'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -209,8 +210,8 @@ export default function VideoDetail() {
 
   // ── Derived data ──
   const derivedData = useMemo(() => {
-    if (!video || !video.subtitles) return { keywords: [], phrases: [], expressions: [] }
-    const keywordMap = new Map(); const phrases = []; const expressions = []
+    if (!video || !video.subtitles) return { keywords: [], chunks: [], expressions: [] }
+    const keywordMap = new Map(); const expressions = []
     for (const sub of video.subtitles) {
       if (sub.highlightWords) {
         for (const kw of sub.highlightWords) {
@@ -218,12 +219,11 @@ export default function VideoDetail() {
           else { const e = keywordMap.get(kw); e.count++; e.times.push(sub.startTime) }
         }
       }
-      if (sub.highlightWords && sub.highlightWords.length >= 3) phrases.push(sub)
       if (sub.annotations && Object.keys(sub.annotations).length > 0) expressions.push(sub)
     }
     return {
       keywords: [...keywordMap.values()].sort((a, b) => b.count - a.count),
-      phrases: phrases.length > 0 ? phrases : video.subtitles.filter(s => s.highlightWords && s.highlightWords.length >= 2).slice(0, 20),
+      chunks: extractChunks(video.subtitles),
       expressions: expressions.length > 0 ? expressions : video.subtitles.filter(s => s.textEn && s.textEn.length > 40).slice(0, 20),
     }
   }, [video])
@@ -1255,13 +1255,13 @@ export default function VideoDetail() {
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-800 text-base">智能重点词卡</h3>
-                <p className="text-[11px] text-slate-400 font-medium">当前视频精选核心词汇、短语与口语地道表达</p>
+                <p className="text-[11px] text-slate-400 font-medium">当前视频精选核心词汇、语块与口语地道表达</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl mb-[18px] border border-slate-200/30">
               {[
                 { id: 'words', label: '重点单词' },
-                { id: 'phrases', label: '核心短语' },
+                { id: 'chunks', label: '核心语块' },
                 { id: 'expressions', label: '地道表达' },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setWordCardTab(tab.id)}
@@ -1296,21 +1296,31 @@ export default function VideoDetail() {
                   </div>
                 </div>
               ))}
-              {wordCardTab === 'phrases' && (
-                derivedData.phrases.length > 0 ? derivedData.phrases.map((sub, i) => (
+              {wordCardTab === 'chunks' && (
+                derivedData.chunks.length > 0 ? derivedData.chunks.map((chunk, i) => (
                   <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
-                    onClick={() => { jumpToSubtitle(sub.startTime); setIsWordCardOpen(false) }}>
-                    <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{sub.textEn}</h4>
-                    <p className="text-[11px] font-semibold text-slate-500 mt-1">{sub.textCn}</p>
-                    {sub.highlightWords && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {sub.highlightWords.map((kw, ki) => (
-                          <span key={ki} className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100/55 px-2 py-0.5 rounded-md">{kw}</span>
-                        ))}
+                    onClick={() => { jumpToSubtitle(chunk.startTime); setIsWordCardOpen(false) }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{chunk.text}</h4>
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100/55 px-1.5 rounded-md">{CHUNK_TYPE_LABELS[chunk.type] || chunk.type}</span>
+                          {chunk.count > 1 && <span className="text-[9px] font-bold text-slate-400">×{chunk.count}</span>}
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-600 mt-1">{chunk.gloss}</p>
                       </div>
-                    )}
+                      <button onClick={e => { e.stopPropagation(); speakWord(chunk.text.replace(/\.\.\./g, ' ').replace(/\s+/g, ' ').trim()) }}
+                        className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors shrink-0" title="点击发音">
+                        <Volume2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-50">
+                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{chunk.sentenceEn}</p>
+                      {chunk.sentenceCn && <p className="text-[11px] text-slate-400 leading-relaxed">{chunk.sentenceCn}</p>}
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-300 mt-1.5 font-mono">{formatTime(chunk.startTime)}</p>
                   </div>
-                )) : <div className="text-center py-8 text-xs text-slate-400">暂无重点短语</div>
+                )) : <div className="text-center py-8 text-xs text-slate-400">暂未提取到语块</div>
               )}
               {wordCardTab === 'expressions' && (
                 derivedData.expressions.length > 0 ? derivedData.expressions.map((sub, i) => (
