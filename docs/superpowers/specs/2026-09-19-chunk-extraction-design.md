@@ -93,6 +93,13 @@ src/utils/chunks.test.js ← 新增 node:test 回归测试
 { id: 'stem-you-know-what',     type: 'opener', re: /^\s*you know what\b/i,                           gloss: '你知道吗……' }
 { id: 'stem-what-i-mean-is',    type: 'opener', re: /^\s*what i mean is\b/i,                          gloss: '我的意思是……' }
 
+// 程度 / 比较 degree（排在 tail 之前：程度/比较结构的迁移价值高于 right now/for now 这类时间尾巴，
+// 每句上限 2 条时优先保住它有释义、更值得练的那条）
+{ id: 'degree-much-more-than',  type: 'degree', re: /\b(?:much|far|way|a lot|even)\s+(?:\w+er|more\s+\w+)\s+than\b/i, gloss: '比……得多' }
+{ id: 'degree-as-as',           type: 'degree', re: /\bas\s+(?!(?:soon|long|far|much)\b)\w+\s+as\b/i,                    gloss: '和……一样……' }
+{ id: 'degree-more-and-more',   type: 'degree', re: /\bmore and more\b/i,                                            gloss: '越来越……' }
+{ id: 'degree-too-to',          type: 'degree', re: /\btoo\s+\w+\s+to\b/i,                                           gloss: '太……以至于不能……' }
+
 // 句尾补充 tail
 { id: 'tail-anytime-soon',      type: 'tail', re: /\bany ?time soon\s*[.!?]*$/i,     gloss: '……短期内（不会）' }
 { id: 'tail-for-now',           type: 'tail', re: /\bfor now\s*[.!?]*$/i,            gloss: '……暂时' }
@@ -100,15 +107,11 @@ src/utils/chunks.test.js ← 新增 node:test 回归测试
 { id: 'tail-at-the-moment',     type: 'tail', re: /\bat the moment\s*[.!?]*$/i,      gloss: '……此刻' }
 { id: 'tail-sooner-or-later',   type: 'tail', re: /\bsooner or later\s*[.!?]*$/i,    gloss: '……迟早' }
 { id: 'tail-in-the-end',        type: 'tail', re: /\bin the end\s*[.!?]*$/i,         gloss: '……最终' }
-
-// 程度 / 比较 degree
-{ id: 'degree-much-more-than',  type: 'degree', re: /\b(?:much|far|way|a lot|even)\s+(?:\w+er|more\s+\w+)\s+than\b/i, gloss: '比……得多' }
-{ id: 'degree-as-as',           type: 'degree', re: /\bas\s+\w+\s+as\b/i,                                            gloss: '和……一样……' }
-{ id: 'degree-more-and-more',   type: 'degree', re: /\bmore and more\b/i,                                            gloss: '越来越……' }
-{ id: 'degree-too-to',          type: 'degree', re: /\btoo\s+\w+\s+to\b/i,                                           gloss: '太……以至于不能……' }
 ```
 
 > `opener` 的 `re` 用 `^` 锚定句首；`tail` 用 `$` 锚定句尾（允许尾部标点）。
+> `degree-as-as` 用否定前瞻排除 `as soon as` / `as long as` / `as far as` / `as much as`，
+> 避免把这几个固定表达套上「和……一样」的错误释义。
 
 ### 提取流程
 
@@ -123,6 +126,7 @@ extractChunks(subtitles):
       for rule of CHUNK_RULES:
           if (matched >= 2) break                  // 同一句最多 2 个语块
           if (matchedTypes.has(rule.type)) continue // 同一类型每句只取一条（防止长短框架重复命中）
+          // CHUNK_RULES 顺序 = 优先级：opener → degree → tail
           m = rule.re.exec(en)
           if (!m) continue
           text = build(rule.type, m[0])
@@ -171,7 +175,7 @@ extractChunks(subtitles):
 | 某条字幕 `textEn` 为空 | 跳过 |
 | 源句 `textCn` 为空 | `sentenceCn` 为 `''`，UI 只显示英文源句 |
 | 一条都没抽到 | 返回 `[]`，UI 显示空态（不回退旧整句行为） |
-| 同一句命中 3 条以上规则 | 同类型只取 1 条，整体只取前 2 条（按 `CHUNK_RULES` 顺序），如 opener + tail |
+| 同一句命中 3 条以上规则 | 同类型只取 1 条，整体只取前 2 条（按 `CHUNK_RULES` 顺序），如 opener + degree |
 | 同一语块多次出现 | 合并为 1 条，`count++`，保留首次的 `startTime` 与源句 |
 
 ## ② UI 接线：`src/pages/VideoDetail.jsx`
@@ -243,7 +247,8 @@ const derivedData = useMemo(() => {
 | 例 2：`It turns out that the problem is much more complicated than we thought.` | 抽出 `It turns out that...`(opener) + `much more complicated than...`(degree) |
 | 去重 | 同一语块出现在 2 条字幕 → 1 条，`count=2`，`startTime` 取首次 |
 | 同类型去重 | 同时命中 `stem-dont-think-gonna` 与 `stem-i-dont-think` 时，只保留更具体的长语块 |
-| 一句最多 2 个 | 一条字幕同时命中 opener / tail / degree 时只留前 2 个类型 |
+| 一句最多 2 个 | 一条字幕同时命中 opener / degree / tail 时只留前 2 个类型（opener + degree） |
+| as soon as 不误判 | `as soon as possible` 不被 `degree-as-as` 抽成语块 |
 | 大小写/标点差异 | `it turns out that...!` 仍命中，chunk 文本取源字幕大小写 |
 | 空输入 | `[]`、`undefined`、`null` → `[]` |
 | 不误伤 | `I saw a movie yesterday.` → `[]` |
