@@ -28,6 +28,21 @@ export const CHUNK_RULES = [
   { id: 'stem-it-seems-like', type: 'opener', re: /^\s*it seems like\b/i, gloss: '看起来好像……' },
   { id: 'stem-you-know-what', type: 'opener', re: /^\s*you know what\b/i, gloss: '你知道吗……' },
   { id: 'stem-what-i-mean-is', type: 'opener', re: /^\s*what i mean is\b/i, gloss: '我的意思是……' },
+
+  // 程度 / 比较 degree（排在 tail 之前：程度/比较结构的迁移价值高于 right now/for now 这类时间尾巴，
+  // 每句上限 2 条时优先保住它有释义、更值得练的那条）
+  { id: 'degree-much-more-than', type: 'degree', re: /\b(?:much|far|way|a lot|even)\s+(?:\w+er|more\s+\w+)\s+than\b/i, gloss: '比……得多' },
+  { id: 'degree-as-as', type: 'degree', re: /\bas\s+(?!(?:soon|long|far|much)\b)\w+\s+as\b/i, gloss: '和……一样……' },
+  { id: 'degree-more-and-more', type: 'degree', re: /\bmore and more\b/i, gloss: '越来越……' },
+  { id: 'degree-too-to', type: 'degree', re: /\btoo\s+\w+\s+to\b/i, gloss: '太……以至于不能……' },
+
+  // 句尾补充 tail
+  { id: 'tail-anytime-soon', type: 'tail', re: /\bany ?time soon\s*[.!?]*$/i, gloss: '……短期内（不会）' },
+  { id: 'tail-for-now', type: 'tail', re: /\bfor now\s*[.!?]*$/i, gloss: '……暂时' },
+  { id: 'tail-right-now', type: 'tail', re: /\bright now\s*[.!?]*$/i, gloss: '……现在/马上' },
+  { id: 'tail-at-the-moment', type: 'tail', re: /\bat the moment\s*[.!?]*$/i, gloss: '……此刻' },
+  { id: 'tail-sooner-or-later', type: 'tail', re: /\bsooner or later\s*[.!?]*$/i, gloss: '……迟早' },
+  { id: 'tail-in-the-end', type: 'tail', re: /\bin the end\s*[.!?]*$/i, gloss: '……最终' },
 ]
 
 const MAX_CHUNKS_PER_SENTENCE = 2

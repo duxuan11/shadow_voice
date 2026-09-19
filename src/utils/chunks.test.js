@@ -44,3 +44,59 @@ describe('extractChunks - 句首框架', () => {
     assert.deepEqual(extractChunks([sub('I saw a movie yesterday.', 0)]), [])
   })
 })
+
+describe('extractChunks - 句尾补充与程度比较', () => {
+  it('例 1 同时抽出句首框架与句尾补充', () => {
+    const out = extractChunks([sub("I don't think we're gonna see that anytime soon.", 5)])
+    assert.deepEqual(
+      out.map(c => c.text).sort(),
+      ["I don't think we're gonna...", '...anytime soon'].sort()
+    )
+  })
+
+  it('例 2 同时抽出句首框架与程度比较', () => {
+    const out = extractChunks([sub('It turns out that the problem is much more complicated than we thought.', 0)])
+    assert.deepEqual(
+      out.map(c => c.text).sort(),
+      ['It turns out that...', 'much more complicated than...'].sort()
+    )
+  })
+
+  it('同一句最多 2 个语块（degree 优先于 tail）', () => {
+    const out = extractChunks([sub('It turns out that she is much more careful than me right now.', 0)])
+    assert.equal(out.length, 2)
+    assert.deepEqual(out.map(c => c.type).sort(), ['degree', 'opener'])
+  })
+
+  it('同一语块多次出现合并为一条并计数，startTime 取首次', () => {
+    const out = extractChunks([
+      sub("I don't think we're gonna win.", 3),
+      sub('It turns out that he won.', 9),
+      sub('It turns out that she lost.', 12),
+    ])
+    const openers = out.filter(c => c.text === 'It turns out that...')
+    assert.equal(openers.length, 1)
+    assert.equal(openers[0].count, 2)
+    assert.equal(openers[0].startTime, 9)
+  })
+
+  it('count 降序、其次 startTime 升序', () => {
+    const out = extractChunks([
+      sub("I don't think we're gonna win.", 3),
+      sub('It turns out that he won.', 9),
+      sub('It turns out that she lost.', 12),
+    ])
+    assert.equal(out[0].text, 'It turns out that...')
+    assert.equal(out[0].count, 2)
+    assert.equal(out[1].startTime, 3)
+  })
+
+  it('as soon as 不会被 as...as 误判为程度比较', () => {
+    assert.deepEqual(extractChunks([sub('Please call me as soon as possible.', 0)]), [])
+  })
+
+  it('句尾补充可独立命中（无句首框架时）', () => {
+    const out = extractChunks([sub('I will finish it for now.', 0)])
+    assert.deepEqual(out.map(c => c.text), ['...for now'])
+  })
+})
