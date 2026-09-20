@@ -62,6 +62,15 @@ function initSchema() {
     UNIQUE(user_id, video_id)
   )`)
 
+  db.run(`CREATE TABLE IF NOT EXISTS practice_records (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id   TEXT NOT NULL,
+    data       TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id)
+  )`)
+
   db.run(`CREATE TABLE IF NOT EXISTS conversation_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
