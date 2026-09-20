@@ -495,19 +495,34 @@
   font-size: 12px;
   color: #9ca3af;
 }
+/* 学习状态：幽灵风格——彩色只在小圆点，文字与口音/字幕数同为中性灰 */
+.video-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
 .learn-badge {
-  padding: 2px 10px;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
   font-size: 12px;
-  font-weight: 600;
+  color: #9ca3af;
   white-space: nowrap;
 }
-.learn-badge-not_learned { background: #fee2e2; color: #dc2626; }
-.learn-badge-learning { background: #fef3c7; color: #d97706; }
-.learn-badge-learned { background: #dcfce7; color: #16a34a; }
+.learn-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+.learn-badge-not_learned::before { background: #ef4444; }
+.learn-badge-learning::before { background: #f59e0b; }
+.learn-badge-learned::before { background: #22c55e; }
 .video-accent {
-  display: block;
-  margin-top: 8px;
   font-size: 12px;
   color: #9ca3af;
 }

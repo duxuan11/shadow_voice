@@ -12,9 +12,9 @@ const STATUS_FILTERS = [
   { label: 'Learned', key: 'learned' },
 ]
 const STATUS_BADGE = {
-  not_learned: '🔴 Not Learned',
-  learning: '🟡 Learning',
-  learned: '🟢 Learned',
+  not_learned: 'Not Learned',
+  learning: 'Learning',
+  learned: 'Learned',
 }
 
 export default function Library() {
@@ -242,13 +242,15 @@ export default function Library() {
                 <span className={`level-badge level-${video.level}`}>{video.level}</span>
                 <span className="topic-badge">{video.topic}</span>
                 <span className="subtitle-count">{video.subtitle_count} 条字幕</span>
+              </div>
+              <div className="video-footer">
+                {video.accent && <span className="video-accent">{video.accent}</span>}
                 {summaryLoaded && (
                   <span className={`learn-badge learn-badge-${statusByVideo[video.id]?.status || 'not_learned'}`}>
                     {STATUS_BADGE[statusByVideo[video.id]?.status || 'not_learned']}
                   </span>
                 )}
               </div>
-              {video.accent && <span className="video-accent">{video.accent}</span>}
             </div>
           </div>
         ))}
