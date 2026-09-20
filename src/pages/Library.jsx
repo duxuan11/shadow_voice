@@ -1,6 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, Clock, ChevronDown, X, Play } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { loadSummary } from '../utils/practiceRecords'
+import { computeVideoProgress, hasAnyPractice, getLearningStatus } from '../utils/learningStatus'
+
+const STATUS_FILTERS = [
+  { label: 'All', key: null },
+  { label: 'Not Learned', key: 'not_learned' },
+  { label: 'Learning', key: 'learning' },
+  { label: 'Learned', key: 'learned' },
+]
+const STATUS_BADGE = {
+  not_learned: '🔴 Not Learned',
+  learning: '🟡 Learning',
+  learned: '🟢 Learned',
+}
 
 export default function Library() {
   const [videos, setVideos] = useState([])
@@ -12,6 +27,9 @@ export default function Library() {
   const [accentFilter, setAccentFilter] = useState('全部')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
+  const { authFetch, isGuest } = useAuth()
+  const [practiceSummary, setPracticeSummary] = useState({})
+  const [statusFilter, setStatusFilter] = useState('All')
   const navigate = useNavigate()
   const PER_PAGE = 20
 
@@ -28,6 +46,20 @@ export default function Library() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    loadSummary(authFetch, isGuest).then(setPracticeSummary).catch(() => {})
+  }, [authFetch, isGuest])
+
+  const statusByVideo = useMemo(() => {
+    const map = {}
+    for (const v of videos) {
+      const counts = practiceSummary[v.id] || {}
+      const progress = computeVideoProgress(counts, v.subtitle_count)
+      map[v.id] = { progress, status: getLearningStatus(counts, progress), hasAny: hasAnyPractice(counts) }
+    }
+    return map
+  }, [videos, practiceSummary])
 
   const filteredVideos = useMemo(() => {
     let result = videos
@@ -53,9 +85,14 @@ export default function Library() {
     if (accentFilter !== '全部') {
       result = result.filter(v => v.accent === accentFilter)
     }
+
+    const statusKey = STATUS_FILTERS.find(f => f.label === statusFilter)?.key
+    if (statusKey) {
+      result = result.filter(v => statusByVideo[v.id]?.status === statusKey)
+    }
     
     return result
-  }, [videos, search, levelFilter, topicFilter, accentFilter])
+  }, [videos, search, levelFilter, topicFilter, accentFilter, statusByVideo, statusFilter])
 
   const totalPages = Math.ceil(filteredVideos.length / PER_PAGE)
   const paginatedVideos = filteredVideos.slice((page - 1) * PER_PAGE, page * PER_PAGE)
@@ -149,16 +186,29 @@ export default function Library() {
               </div>
             </div>
           )}
+          <div className="filter-group">
+            <label className="filter-label">学习状态</label>
+            <div className="filter-options">
+              {STATUS_FILTERS.map(f => (
+                <button
+                  key={f.label}
+                  className={`filter-btn ${statusFilter === f.label ? 'active' : ''}`}
+                  onClick={() => { setStatusFilter(f.label); setPage(1) }}
+                >{f.label}</button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       <div className="results-info">
         <span>共 {filteredVideos.length} 个视频</span>
-        {(levelFilter !== '全部' || topicFilter !== '全部' || accentFilter !== '全部') && (
+        {(levelFilter !== '全部' || topicFilter !== '全部' || accentFilter !== '全部' || statusFilter !== 'All') && (
           <span className="active-filters">
             {levelFilter !== '全部' && <span className="filter-tag" onClick={() => setLevelFilter('全部')}>{levelFilter} ×</span>}
             {topicFilter !== '全部' && <span className="filter-tag" onClick={() => setTopicFilter('全部')}>{topicFilter} ×</span>}
             {accentFilter !== '全部' && <span className="filter-tag" onClick={() => setAccentFilter('全部')}>{accentFilter} ×</span>}
+            {statusFilter !== 'All' && <span className="filter-tag" onClick={() => setStatusFilter('All')}>{statusFilter} ×</span>}
           </span>
         )}
       </div>
@@ -188,6 +238,9 @@ export default function Library() {
                 <span className={`level-badge level-${video.level}`}>{video.level}</span>
                 <span className="topic-badge">{video.topic}</span>
                 <span className="subtitle-count">{video.subtitle_count} 条字幕</span>
+                <span className={`learn-badge learn-badge-${statusByVideo[video.id]?.status || 'not_learned'}`}>
+                  {STATUS_BADGE[statusByVideo[video.id]?.status || 'not_learned']}
+                </span>
               </div>
               {video.accent && <span className="video-accent">{video.accent}</span>}
             </div>
@@ -220,7 +273,7 @@ export default function Library() {
       {filteredVideos.length === 0 && (
         <div className="empty-state">
           <p>没有找到匹配的视频</p>
-          <button onClick={() => { setSearch(''); setLevelFilter('全部'); setTopicFilter('全部'); setAccentFilter('全部'); }}>清除筛选</button>
+          <button onClick={() => { setSearch(''); setLevelFilter('全部'); setTopicFilter('全部'); setAccentFilter('全部'); setStatusFilter('All'); }}>清除筛选</button>
         </div>
       )}
     </div>
