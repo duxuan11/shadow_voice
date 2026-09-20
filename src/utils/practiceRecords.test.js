@@ -3,7 +3,21 @@ import assert from 'node:assert/strict'
 import {
   PRACTICE_TASKS, emptyPracticeData, addIndex,
   markLocal, loadLocalOne, loadLocalSummary, resetLocalPractice,
+  loadSummary, loadOne, mark,
 } from './practiceRecords.js'
+
+// 记录 authFetch 调用并返回可编排的响应替身
+function makeAuthFetch(respond) {
+  const calls = []
+  const authFetch = (path, options) => {
+    calls.push({ path, options })
+    return respond(path, options)
+  }
+  authFetch.calls = calls
+  return authFetch
+}
+
+const okJson = body => () => Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
 
 // 最小 localStorage 替身，供 node:test 环境使用
 beforeEach(() => {
@@ -35,6 +49,56 @@ describe('addIndex', () => {
   })
   it('任务与常量一致', () => {
     assert.deepEqual(PRACTICE_TASKS, ['shadow', 'cloze', 'translate'])
+  })
+})
+
+describe('登录用户网络路径', () => {
+  it('loadSummary 请求 /practice/summary 并返回 body.summary', async () => {
+    const authFetch = makeAuthFetch(okJson({ summary: { v1: { cloze: 2 } } }))
+    const summary = await loadSummary(authFetch, false)
+    assert.deepEqual(summary, { v1: { cloze: 2 } })
+    assert.equal(authFetch.calls.length, 1)
+    assert.equal(authFetch.calls[0].path, '/practice/summary')
+  })
+  it('loadSummary 响应非 ok 时返回空对象', async () => {
+    const authFetch = makeAuthFetch(() => Promise.resolve({ ok: false }))
+    assert.deepEqual(await loadSummary(authFetch, false), {})
+  })
+  it('loadSummary 请求失败时返回空对象', async () => {
+    const authFetch = makeAuthFetch(() => Promise.reject(new Error('network')))
+    assert.deepEqual(await loadSummary(authFetch, false), {})
+  })
+
+  it('loadOne 请求 /practice/:id 并合并到空结构', async () => {
+    const authFetch = makeAuthFetch(okJson({ data: { shadow: [1, 2] } }))
+    const data = await loadOne(authFetch, false, 'v1')
+    assert.deepEqual(data, { shadow: [1, 2], cloze: [], translate: [] })
+    assert.equal(authFetch.calls[0].path, '/practice/v1')
+  })
+  it('loadOne 响应非 ok 时返回空结构', async () => {
+    const authFetch = makeAuthFetch(() => Promise.resolve({ ok: false }))
+    assert.deepEqual(await loadOne(authFetch, false, 'v1'), emptyPracticeData())
+  })
+  it('loadOne 请求失败时返回空结构', async () => {
+    const authFetch = makeAuthFetch(() => Promise.reject(new Error('network')))
+    assert.deepEqual(await loadOne(authFetch, false, 'v1'), emptyPracticeData())
+  })
+
+  it('mark 向 /practice/:id 发送 POST 与任务负载', async () => {
+    const authFetch = makeAuthFetch(okJson({}))
+    mark(authFetch, false, 'v1', 'cloze', 3)
+    await new Promise(r => setTimeout(r, 0))
+    assert.equal(authFetch.calls.length, 1)
+    const { path, options } = authFetch.calls[0]
+    assert.equal(path, '/practice/v1')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(JSON.parse(options.body), { task: 'cloze', index: 3 })
+  })
+  it('mark 请求失败时不抛错（乐观记录）', async () => {
+    const authFetch = makeAuthFetch(() => Promise.reject(new Error('network')))
+    assert.doesNotThrow(() => mark(authFetch, false, 'v1', 'cloze', 3))
+    // 让被吞掉的 rejection 结算，若未捕获会在这里冒泡
+    await new Promise(r => setTimeout(r, 0))
   })
 })
 

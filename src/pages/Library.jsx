@@ -29,6 +29,7 @@ export default function Library() {
   const [showFilters, setShowFilters] = useState(false)
   const { authFetch, isGuest } = useAuth()
   const [practiceSummary, setPracticeSummary] = useState({})
+  const [summaryLoaded, setSummaryLoaded] = useState(false)
   const [statusFilter, setStatusFilter] = useState('All')
   const navigate = useNavigate()
   const PER_PAGE = 20
@@ -48,7 +49,10 @@ export default function Library() {
   }, [])
 
   useEffect(() => {
-    loadSummary(authFetch, isGuest).then(setPracticeSummary).catch(() => {})
+    loadSummary(authFetch, isGuest)
+      .then(setPracticeSummary)
+      .catch(() => {})
+      .finally(() => setSummaryLoaded(true))
   }, [authFetch, isGuest])
 
   const statusByVideo = useMemo(() => {
@@ -238,9 +242,11 @@ export default function Library() {
                 <span className={`level-badge level-${video.level}`}>{video.level}</span>
                 <span className="topic-badge">{video.topic}</span>
                 <span className="subtitle-count">{video.subtitle_count} 条字幕</span>
-                <span className={`learn-badge learn-badge-${statusByVideo[video.id]?.status || 'not_learned'}`}>
-                  {STATUS_BADGE[statusByVideo[video.id]?.status || 'not_learned']}
-                </span>
+                {summaryLoaded && (
+                  <span className={`learn-badge learn-badge-${statusByVideo[video.id]?.status || 'not_learned'}`}>
+                    {STATUS_BADGE[statusByVideo[video.id]?.status || 'not_learned']}
+                  </span>
+                )}
               </div>
               {video.accent && <span className="video-accent">{video.accent}</span>}
             </div>
