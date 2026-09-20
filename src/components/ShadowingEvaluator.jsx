@@ -72,7 +72,7 @@ function wordColor(score) {
   return 'text-rose-600 bg-rose-50 underline decoration-wavy'
 }
 
-export default function ShadowingEvaluator({ refText }) {
+export default function ShadowingEvaluator({ refText, onPracticed }) {
   const { authFetch, user } = useAuth()
   const [phase, setPhase] = useState('ready') // ready | recording | evaluating | result | error
   const [result, setResult] = useState(null)
@@ -218,7 +218,7 @@ export default function ShadowingEvaluator({ refText }) {
       setPhaseSafe('recording')
       setSeconds(0)
       secondsRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
-      timerRef.current = setTimeout(() => { if (engineRef.current) { engineRef.current.stopRecord(); setPhaseSafe('evaluating') } }, MAX_RECORD_MS)
+      timerRef.current = setTimeout(() => { if (engineRef.current) { engineRef.current.stopRecord(); setPhaseSafe('evaluating') } onPracticed?.() }, MAX_RECORD_MS)
       busyRef.current = false
       try {
         engine.startRecord({
@@ -250,14 +250,15 @@ export default function ShadowingEvaluator({ refText }) {
       setPhaseSafe('error')
       setError(e.message || '启动评测失败')
     }
-  }, [clearTimers, getWarrant, ensureEngine, waitInit, refText, setPhaseSafe])
+  }, [clearTimers, getWarrant, ensureEngine, waitInit, refText, setPhaseSafe, onPracticed])
 
   // ── 停止评测 ──
   const stop = useCallback(() => {
     clearTimers()
     if (engineRef.current) engineRef.current.stopRecord()
     setPhaseSafe('evaluating')
-  }, [clearTimers, setPhaseSafe])
+    onPracticed?.()
+  }, [clearTimers, setPhaseSafe, onPracticed])
 
   // ── 重试 ──
   const retry = useCallback(() => {
