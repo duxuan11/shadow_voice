@@ -9,6 +9,7 @@ import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
 import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
 import { extractChunks, CHUNK_TYPE_LABELS } from '../utils/chunks'
+import { mark as markPractice } from '../utils/practiceRecords'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -189,10 +190,17 @@ export default function VideoDetail() {
     setupTranslateMode(sub)
   }, [activeSubIndex, video, setupClozeMode, setupTranslateMode])
 
+  // ── 学习状态埋点：练习过即记录（不要求答对/评测成功）──
+  const recordPractice = useCallback((task, index) => {
+    if (!id || !Number.isInteger(index) || index < 0) return
+    markPractice(authFetch, isGuest, id, task, index)
+  }, [id, authFetch, isGuest])
+
   // ── Cloze / Translate handlers ──
   const handleSelectClozeOption = (option) => {
     setSelectedClozeWord(option)
     setIsClozeCorrect(option.toLowerCase().replace(/[^a-zA-Z]/g, '') === clozeTargetWord.toLowerCase().replace(/[^a-zA-Z]/g, ''))
+    recordPractice('cloze', activeSubIndex)
   }
   const handleChipClick = (word, index) => {
     setSelectedTranslateChips(prev => [...prev, word])
@@ -206,6 +214,7 @@ export default function VideoDetail() {
     if (!currentSub) return
     const cleanText = currentSub.textEn.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').trim()
     setIsTranslateCorrect(selectedTranslateChips.join(' ').toLowerCase().trim() === cleanText)
+    recordPractice('translate', activeSubIndex)
   }
 
   // ── Derived data ──
@@ -687,7 +696,7 @@ export default function VideoDetail() {
                   )}
                 </div>
                 {currentSub ? (
-                  <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} />
+                  <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
                 ) : (
                   <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                 )}
@@ -1086,7 +1095,7 @@ export default function VideoDetail() {
                           )}
                         </div>
                         {currentSub ? (
-                          <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} />
+                          <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                         )}

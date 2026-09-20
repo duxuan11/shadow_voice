@@ -495,9 +495,34 @@
   font-size: 12px;
   color: #9ca3af;
 }
-.video-accent {
-  display: block;
+/* 学习状态：幽灵风格——彩色只在小圆点，文字与口音/字幕数同为中性灰 */
+.video-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
+}
+.learn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: 12px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+.learn-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+.learn-badge-not_learned::before { background: #ef4444; }
+.learn-badge-learning::before { background: #f59e0b; }
+.learn-badge-learned::before { background: #22c55e; }
+.video-accent {
   font-size: 12px;
   color: #9ca3af;
 }
