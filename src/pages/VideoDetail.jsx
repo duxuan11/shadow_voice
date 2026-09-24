@@ -7,9 +7,9 @@ import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
-import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
+import { mergeAdjacentDuplicateSubtitles, findActiveSubtitleIndex } from '../utils/subtitles'
 import { extractChunks, CHUNK_TYPE_LABELS } from '../utils/chunks'
-import { mark as markPractice } from '../utils/practiceRecords'
+import { mark as markPractice, loadOne, firstUnpracticedIndex, addIndex } from '../utils/practiceRecords'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
@@ -52,7 +52,6 @@ export default function VideoDetail() {
   }, [])
 
   const [video, setVideo] = useState(null)
-  const [allVideos, setAllVideos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -91,6 +90,14 @@ export default function VideoDetail() {
   const [selectedTranslateChips, setSelectedTranslateChips] = useState([])
   const [isTranslateCorrect, setIsTranslateCorrect] = useState(null)
 
+  // 练习记录（仅登录用户读取；游客不展示标志也不续练）
+  const [practiceData, setPracticeData] = useState(null) // null = 未加载或游客
+  const practicedSets = useMemo(() => ({
+    shadow: new Set(practiceData?.shadow || []),
+    cloze: new Set(practiceData?.cloze || []),
+    translate: new Set(practiceData?.translate || []),
+  }), [practiceData])
+
   const scrollContainerRef = useRef(null)
   const mobileScrollRef = useRef(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -101,7 +108,6 @@ export default function VideoDetail() {
   // ── Data loading ──
   useEffect(() => {
     fetch('/data/consolidated.json').then(r => r.json()).then(videos => {
-      setAllVideos(videos)
       const found = videos.find(v => v.id === id)
       if (found) {
         const subsUrl = `/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`
@@ -117,6 +123,14 @@ export default function VideoDetail() {
   }, [id])
 
   useEffect(() => { authFetch('/vocab').then(r => r.json()).then(d => setVocabulary(d.vocabulary || [])).catch(() => {}) }, [id, authFetch])
+
+  // ── 练习记录：读取已练句下标（登录用户），用于「已练」标志与切 tab 续练 ──
+  useEffect(() => {
+    if (isGuest || !id) return
+    let alive = true
+    loadOne(authFetch, false, id).then(d => { if (alive) setPracticeData(d) }).catch(() => {})
+    return () => { alive = false }
+  }, [id, isGuest, authFetch])
 
   // ── Progress: load saved position (skip for guests) ──
   useEffect(() => {
@@ -194,6 +208,10 @@ export default function VideoDetail() {
   const recordPractice = useCallback((task, index) => {
     if (!id || !Number.isInteger(index) || index < 0) return
     markPractice(authFetch, isGuest, id, task, index)
+    // 本地乐观更新，徽章立即变「已练」（addIndex 已处理 null / 非法输入）
+    if (!isGuest) {
+      setPracticeData(prev => addIndex(prev, task, index))
+    }
   }, [id, authFetch, isGuest])
 
   // ── Cloze / Translate handlers ──
@@ -241,7 +259,7 @@ export default function VideoDetail() {
   // 有匹配字幕时更新；落在时间间隙（无匹配）时保留上一条，避免高亮消失与跟随跳变
   useEffect(() => {
     if (!video || !video.subtitles) return
-    const idx = video.subtitles.findIndex(s => currentTime >= s.startTime && currentTime <= s.endTime)
+    const idx = findActiveSubtitleIndex(video.subtitles, currentTime)
     if (idx >= 0) setActiveSubIndex(idx)
   }, [currentTime, video])
 
@@ -322,6 +340,16 @@ export default function VideoDetail() {
     setCurrentTime(st)
     setActiveSubIndex(idx)
   }
+  // 切到练习 tab：登录用户自动续练到该任务第一句没练过的
+  const handleTabClick = (key) => {
+    const current = isMobile ? mobileTab : sidebarTab
+    setMobileTab(key); setSidebarTab(key)
+    if (isGuest || !practiceData || key === 'transcript' || key === current) return
+    const total = video?.subtitles?.length || 0
+    if (!total) return
+    const idx = firstUnpracticedIndex(practicedSets[key], total)
+    if (idx >= 0) navigateToSubtitle(idx)
+  }
   const toggleMute = () => { const vid = videoRef.current; if (vid) { setMuted(!muted); vid.muted = !muted } }
   const handleVolumeChange = (e) => { const v = parseFloat(e.target.value); setVolume(v); if (v > 0) setMuted(false); const vid = videoRef.current; if (vid) vid.volume = v }
   const toggleFullscreen = async () => {
@@ -369,8 +397,13 @@ export default function VideoDetail() {
   }, [])
   const changeSpeed = (s) => { const vid = videoRef.current; if (vid) vid.playbackRate = s; setPlaybackRate(s); setShowSpeedPicker(false) }
   const cycleSpeed = () => { const s = playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : playbackRate === 1.5 ? 0.75 : 1; changeSpeed(s) }
-  const goToNextVideo = () => { if (!allVideos.length) return; const i = allVideos.findIndex(v => v.id === id); if (i >= 0 && i < allVideos.length - 1) navigate(`/video/${allVideos[i + 1].id}`) }
-  const handleVideoEnded = () => { setPlaying(false); const vid = videoRef.current; if (loopMode === 'all' && vid) vid.play(); else goToNextVideo() }
+  const handleVideoEnded = () => {
+    setPlaying(false)
+    const vid = videoRef.current
+    if (loopMode === 'all' && vid) { vid.play(); return }
+    // 播放完不再自动切下一个视频：回到本视频第 1 句并停下
+    navigateToSubtitle(0)
+  }
   const goPrevSentence = () => { navigateToSubtitle(activeSubIndex - 1) }
   const goNextSentence = () => { navigateToSubtitle(activeSubIndex + 1) }
   const cycleLoop = () => { const m = ['off', 'sentence', 'all']; const n = m[(m.indexOf(loopMode) + 1) % 3]; setLoopMode(n); setIsLooping(n !== 'off'); const vid = videoRef.current; if (vid) vid.loop = n === 'all'; if (n !== 'sentence') { setLoopStart(null); setLoopEnd(null) }; setShowLoopPicker(false) }
@@ -504,6 +537,19 @@ export default function VideoDetail() {
     )
   }
 
+  // ── 当前句「已练/未练」徽章（仅登录用户；卡片内右下角，不占题目区域）──
+  const practiceBadge = (task) => {
+    if (isGuest || !practiceData || !currentSub) return null
+    const done = practicedSets[task]?.has(activeSubIndex)
+    return (
+      <div className="flex justify-end mt-3">
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${done ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-50 border-slate-100'}`}>
+          {done ? '已练 ✓' : '未练'}
+        </span>
+      </div>
+    )
+  }
+
   // ───────────────────────────────────────────
   // Render: Video Player (render function, NOT a component)
   // ───────────────────────────────────────────
@@ -618,7 +664,7 @@ export default function VideoDetail() {
             }
             const colors = tabColors[tab.key]
             return (
-              <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+              <button key={tab.key} onClick={() => handleTabClick(tab.key)}
                 className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs font-semibold rounded-lg mx-0.5 transition-all cursor-pointer active:scale-95 ${isActive ? colors.active : 'text-slate-500 hover:bg-slate-50'}`}>
                 <Icon className="h-4 w-4" />
                 <span>{tab.label}</span>
@@ -700,6 +746,7 @@ export default function VideoDetail() {
                 ) : (
                   <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                 )}
+                {practiceBadge('shadow')}
               </div>
             </div>
           )}
@@ -741,6 +788,7 @@ export default function VideoDetail() {
               ) : (
                 <div className="text-center py-8 text-xs text-slate-400 italic">请选择一句开始填空</div>
               )}
+              {practiceBadge('cloze')}
               </div>
             </div>
           )}
@@ -785,6 +833,7 @@ export default function VideoDetail() {
               ) : (
                 <div className="text-center py-8 text-xs text-slate-400 italic">请选择句子进行中译英练习</div>
               )}
+              {practiceBadge('translate')}
               </div>
             </div>
           )}
@@ -1039,7 +1088,7 @@ export default function VideoDetail() {
                     { key: 'cloze', icon: <PenTool className="h-4 w-4 mb-1 text-slate-500" />, label: '挖空', badge: '练习', badgeStyle: 'text-emerald-600 bg-emerald-50' },
                     { key: 'translate', icon: <Languages className="h-4 w-4 mb-1 text-slate-500" />, label: '中译英', badge: '拼写', badgeStyle: 'text-purple-600 bg-purple-50' },
                   ].map(tab => (
-                    <button key={tab.key} onClick={() => setSidebarTab(tab.key)}
+                    <button key={tab.key} onClick={() => handleTabClick(tab.key)}
                       className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl cursor-pointer transition-all ${sidebarTab === tab.key ? 'bg-white text-indigo-600 shadow-xs border border-indigo-50/30 font-bold' : 'text-slate-500 hover:text-slate-800 font-medium'}`}>
                       {tab.icon}
                       <span className="text-[10px]">{tab.label}</span>
@@ -1099,6 +1148,7 @@ export default function VideoDetail() {
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                         )}
+                        {practiceBadge('shadow')}
                       </div>
                     </div>
                   )}
@@ -1144,6 +1194,7 @@ export default function VideoDetail() {
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择一句开始填空</div>
                         )}
+                        {practiceBadge('cloze')}
                       </div>
                     </div>
                   )}
@@ -1192,6 +1243,7 @@ export default function VideoDetail() {
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择句子进行中译英练习</div>
                         )}
+                        {practiceBadge('translate')}
                       </div>
                     </div>
                   )}

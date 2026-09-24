@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  PRACTICE_TASKS, emptyPracticeData, addIndex,
+  PRACTICE_TASKS, emptyPracticeData, addIndex, firstUnpracticedIndex,
   markLocal, loadLocalOne, loadLocalSummary, resetLocalPractice,
   loadSummary, loadOne, mark,
 } from './practiceRecords.js'
@@ -49,6 +49,25 @@ describe('addIndex', () => {
   })
   it('任务与常量一致', () => {
     assert.deepEqual(PRACTICE_TASKS, ['shadow', 'cloze', 'translate'])
+  })
+})
+
+describe('firstUnpracticedIndex', () => {
+  it('返回第一个没练过的下标', () => {
+    assert.equal(firstUnpracticedIndex(new Set([0, 1, 3]), 5), 2)
+    assert.equal(firstUnpracticedIndex(new Set(), 3), 0)
+  })
+  it('全部练完时回到第 1 句', () => {
+    assert.equal(firstUnpracticedIndex(new Set([0, 1, 2]), 3), 0)
+  })
+  it('忽略越界记录，非法 total 返回 -1', () => {
+    assert.equal(firstUnpracticedIndex(new Set([9, 10]), 2), 0)
+    assert.equal(firstUnpracticedIndex(new Set([0]), 0), -1)
+    assert.equal(firstUnpracticedIndex(new Set([0]), -3), -1)
+  })
+  it('非 Set 的练习记录按空处理', () => {
+    assert.equal(firstUnpracticedIndex(null, 3), 0)
+    assert.equal(firstUnpracticedIndex([0, 1], 3), 0)
   })
 })
 

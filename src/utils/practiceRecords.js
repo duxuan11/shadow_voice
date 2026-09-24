@@ -18,6 +18,22 @@ export function addIndex(data, task, index) {
   return { ...base, [task]: [...current, index] }
 }
 
+/**
+ * 返回第一个没练过的句子下标，用于切到练习 tab 时自动续练。
+ * @param {Set<number>} practiced 已练句下标集合（非 Set 按空处理）
+ * @param {number} total 句子总数
+ * @returns {number} 第一个未练下标；全部练完返回 0 回到第 1 句；total 非法返回 -1
+ */
+export function firstUnpracticedIndex(practiced, total) {
+  const n = Number(total)
+  if (!Number.isFinite(n) || n <= 0) return -1
+  const set = practiced instanceof Set ? practiced : null
+  for (let i = 0; i < Math.floor(n); i++) {
+    if (!set || !set.has(i)) return i
+  }
+  return 0
+}
+
 function readLocalStore() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')

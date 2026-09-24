@@ -59,3 +59,27 @@ export function mergeAdjacentDuplicateSubtitles(subs) {
   }
   return out
 }
+
+/**
+ * 找出时间 t 对应的当前字幕下标。
+ *
+ * 相邻字幕的时间轴可能重叠：数据本身就有重叠，相邻重复合并后又会把 endTime 拉宽，
+ * 重叠更常见。若像 findIndex 那样取「第一个命中」，在重叠区间里跳到下一句的起点时
+ * 仍会命中上一句，导致 activeSubIndex 退回上一句（看起来就是同一句又出现一次）。
+ * 因此这里取「最后一个命中」——较晚开始、仍覆盖 t 的那条。
+ *
+ * @param {Array} subs 字幕数组
+ * @param {number} time 当前播放时间（秒）
+ * @returns {number} 命中的下标；无命中返回 -1
+ */
+export function findActiveSubtitleIndex(subs, time) {
+  if (!Array.isArray(subs) || subs.length === 0) return -1
+  const t = Number(time)
+  if (!Number.isFinite(t)) return -1
+  for (let i = subs.length - 1; i >= 0; i--) {
+    const sub = subs[i]
+    if (!sub) continue
+    if (t >= Number(sub.startTime) && t <= Number(sub.endTime)) return i
+  }
+  return -1
+}

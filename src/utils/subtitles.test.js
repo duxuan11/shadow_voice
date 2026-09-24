@@ -3,7 +3,7 @@
 // 前端逐句练习（跟读/填空/中译英/听写）会看到同一句连着出现两次。
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeAdjacentDuplicateSubtitles, normalizeSentence } from './subtitles.js'
+import { mergeAdjacentDuplicateSubtitles, normalizeSentence, findActiveSubtitleIndex } from './subtitles.js'
 
 const sub = (textEn, startTime, endTime, extra = {}) => ({ id: `${startTime}`, startTime, endTime, textEn, textCn: '', ...extra })
 
@@ -73,5 +73,45 @@ describe('mergeAdjacentDuplicateSubtitles', () => {
     assert.deepEqual(mergeAdjacentDuplicateSubtitles([]), [])
     assert.deepEqual(mergeAdjacentDuplicateSubtitles(null), [])
     assert.deepEqual(mergeAdjacentDuplicateSubtitles(undefined), [])
+  })
+})
+
+describe('findActiveSubtitleIndex', () => {
+  const subs = [
+    { startTime: 0, endTime: 2, textEn: 'A' },
+    { startTime: 3, endTime: 5, textEn: 'B' },
+    { startTime: 6, endTime: 8, textEn: 'C' },
+  ]
+
+  it('时间落在某句区间内时返回该句下标（含 start/end 边界）', () => {
+    assert.equal(findActiveSubtitleIndex(subs, 1), 0)
+    assert.equal(findActiveSubtitleIndex(subs, 3), 1)
+    assert.equal(findActiveSubtitleIndex(subs, 4), 1)
+    assert.equal(findActiveSubtitleIndex(subs, 8), 2)
+  })
+
+  it('落在间隙或区间外返回 -1', () => {
+    assert.equal(findActiveSubtitleIndex(subs, -1), -1)
+    assert.equal(findActiveSubtitleIndex(subs, 2.5), -1)
+    assert.equal(findActiveSubtitleIndex(subs, 99), -1)
+  })
+
+  it('时间轴重叠时取最后一条命中（点下一句不再退回上一句）', () => {
+    const overlap = [
+      { startTime: 10, endTime: 12, textEn: 'A' },
+      { startTime: 11.5, endTime: 13, textEn: 'B' },
+      { startTime: 13.5, endTime: 15, textEn: 'C' },
+    ]
+    // 跳到 B 的起点 11.5 时同时命中 A 与 B，应选后开始的 B
+    assert.equal(findActiveSubtitleIndex(overlap, 11.5), 1)
+    assert.equal(findActiveSubtitleIndex(overlap, 11.9), 1)
+    // A 独占区间仍选 A
+    assert.equal(findActiveSubtitleIndex(overlap, 10.5), 0)
+  })
+
+  it('空 / 非数组输入安全返回 -1', () => {
+    assert.equal(findActiveSubtitleIndex([], 0), -1)
+    assert.equal(findActiveSubtitleIndex(null, 0), -1)
+    assert.equal(findActiveSubtitleIndex(undefined, 5), -1)
   })
 })

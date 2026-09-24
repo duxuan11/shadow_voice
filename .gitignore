@@ -29,3 +29,6 @@ data/videos
 !data/.gitkeep
 data1
 worktrees
+
+# 环境变量文件（不带点的变体，同样含密钥，绝不提交）
+env
