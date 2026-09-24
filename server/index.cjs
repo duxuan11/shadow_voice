@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
+const { resolveDataDir } = require('../scripts/dataDir.cjs')
 
 const { getDb } = require('./db.cjs')
 const authRoutes = require('./routes/auth.cjs')
@@ -53,7 +54,7 @@ app.use('/api', (req, res) => {
 // ── Static data (videos, JSON, thumbnails) ─────────────────
 // This serves the bind-mounted volume in Docker, or the local
 // data/ directory during development without Vite.
-const dataDir = path.join(__dirname, '..', 'data')
+const dataDir = resolveDataDir(process.env.DATA_DIR, path.join(__dirname, '..'))
 app.use('/data', express.static(dataDir, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {

@@ -1,17 +1,17 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import fs from 'fs'
 import { pipeline } from 'stream'
+import process from 'node:process'
 import { fileURLToPath } from 'url'
+import { resolveDataDir } from './scripts/dataDir.cjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = path.resolve(__dirname, 'data')
-const VIDEOS_DIR = path.join(DATA_DIR, 'videos')
 
 // Scan episode folders and generate consolidated.json + meta.json
-function generateDataIndex() {
+function generateDataIndex(DATA_DIR, VIDEOS_DIR) {
   if (!fs.existsSync(VIDEOS_DIR)) return
 
   const epDirs = fs.readdirSync(VIDEOS_DIR)
@@ -121,7 +121,7 @@ function generateDataIndex() {
 }
 
 // Custom plugin: serve /data/ directory and auto-generate index
-function dataServerPlugin() {
+function dataServerPlugin(DATA_DIR, VIDEOS_DIR) {
   let generated = false
 
   return {
@@ -129,28 +129,37 @@ function dataServerPlugin() {
     configureServer(server) {
       // Generate index once at startup
       if (!generated) {
-        generateDataIndex()
+        generateDataIndex(DATA_DIR, VIDEOS_DIR)
         generated = true
       }
 
-      // Watch for changes in data/videos/ and regenerate.
-      // 用原生 fs.watch 浅监听顶层目录(仅 1 个 inotify 实例,不递归 406 个子目录):
+      // Watch for changes in <DATA_DIR>/videos/ and regenerate.
+      // 用原生 fs.watch 浅监听顶层目录(仅 1 个 inotify 实例,不递归子目录):
       // 新增/删除视频目录会触发父目录 rename 事件 → 重建索引。
       // 不要用 server.watcher.add() —— chokidar 递归会占满 inotify 配额(EMFILE)。
-      const videosWatcher = fs.watch(VIDEOS_DIR, (_event, filename) => {
-        if (filename && !String(filename).includes('node_modules')) {
-          generateDataIndex()
-        }
-      })
-      server.httpServer?.on('close', () => {
-        try { videosWatcher.close() } catch { /* ignore */ }
-      })
+      // 目录不存在时跳过（可用 .env 的 DATA_DIR 指定；缺失不应让 dev server 崩溃）。
+      if (fs.existsSync(VIDEOS_DIR)) {
+        const videosWatcher = fs.watch(VIDEOS_DIR, (_event, filename) => {
+          if (filename && !String(filename).includes('node_modules')) {
+            generateDataIndex(DATA_DIR, VIDEOS_DIR)
+          }
+        })
+        server.httpServer?.on('close', () => {
+          try { videosWatcher.close() } catch { /* ignore */ }
+        })
+      } else {
+        console.log(`[data-server] 未找到数据目录，跳过监听：${VIDEOS_DIR}（可在 .env 用 DATA_DIR 指定）`)
+      }
 
-      // Serve /data/ files with Range request support for video seeking
+      // Serve /data/ files with Range request support for video seeking.
+      // 路径统一从 DATA_DIR 解析，并做越界防护（decodeURIComponent 可能含 ..）。
       server.middlewares.use('/data/', (req, res, next) => {
-        const url = new URL(req.url, `http://${req.headers.host}`).pathname
-        const decoded = decodeURIComponent(url)
-        const filePath = path.resolve(__dirname, decoded.substring(1))
+        const rawPath = req.originalUrl || req.url || ''
+        const url = new URL(rawPath, `http://${req.headers.host || 'localhost'}`).pathname
+        const rel = decodeURIComponent(url).replace(/^\/data(?=\/|$)/, '').replace(/^\/+/, '')
+        const filePath = path.resolve(DATA_DIR, rel)
+        const withinData = filePath === DATA_DIR || filePath.startsWith(DATA_DIR + path.sep)
+        if (!withinData) return next()
 
         if (fs.existsSync(filePath)) {
           const ext = path.extname(filePath).toLowerCase()
@@ -196,13 +205,21 @@ function dataServerPlugin() {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), dataServerPlugin()],
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    proxy: {
-      '/api': 'http://localhost:3001'
+export default defineConfig(({ mode }) => {
+  // 读取 .env（含 DATA_DIR）；空值默认 <root>/data。前缀 '' 表示读取全部变量。
+  // 优先级：进程环境变量 > .env（便于 shell/CI 临时覆盖）。
+  const env = loadEnv(mode, __dirname, '')
+  const DATA_DIR = resolveDataDir(process.env.DATA_DIR || env.DATA_DIR, __dirname)
+  const VIDEOS_DIR = path.join(DATA_DIR, 'videos')
+
+  return {
+    plugins: [react(), tailwindcss(), dataServerPlugin(DATA_DIR, VIDEOS_DIR)],
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      proxy: {
+        '/api': 'http://localhost:3001'
+      }
     }
   }
 })

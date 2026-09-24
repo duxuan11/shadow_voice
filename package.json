@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "server": "node --env-file-if-exists=.env server/index.cjs",
-    "build": "vite build && mkdir -p dist/data && cp data/consolidated.json data/meta.json dist/data/ 2>/dev/null; echo 'Build complete with data files'",
+    "build": "vite build && node --env-file-if-exists=.env scripts/copy-data.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
