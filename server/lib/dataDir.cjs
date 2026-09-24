@@ -9,6 +9,9 @@ const path = require('path')
  * 供 vite.config.js（开发）、server/index.cjs（生产）与 scripts/copy-data.mjs（构建）
  * 共用，保证三处的 DATA_DIR 行为一致。
  *
+ * 放在 server/lib/ 下（而非 scripts/），因为它是生产运行时的依赖，
+ * 需随 Dockerfile 的 `COPY server/` 一起进镜像。
+ *
  * @param {string} value DATA_DIR 环境变量值
  * @param {string} root 项目根目录
  * @returns {string} 规范化后的绝对路径

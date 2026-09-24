@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
-const { resolveDataDir } = require('../scripts/dataDir.cjs')
+const { resolveDataDir } = require('./lib/dataDir.cjs')
 
 const { getDb } = require('./db.cjs')
 const authRoutes = require('./routes/auth.cjs')

@@ -60,6 +60,12 @@ export function mergeAdjacentDuplicateSubtitles(subs) {
   return out
 }
 
+// 起止边界的容差（秒）。视频时间轴按 timescale 量化、浏览器 currentTime 又按
+// 微秒取整，seek 到字幕 startTime 时实际值常比 startTime 小 1~2µs。相邻字幕首尾
+// 相接（上句 endTime === 下句 startTime）时，这点偏差会让时间落回上一句区间，
+// 于是「下一句」跳转后又被判定回上一句。比较下界时留一点容差即可。
+const START_BOUNDARY_EPSILON = 1e-3
+
 /**
  * 找出时间 t 对应的当前字幕下标。
  *
@@ -67,6 +73,9 @@ export function mergeAdjacentDuplicateSubtitles(subs) {
  * 重叠更常见。若像 findIndex 那样取「第一个命中」，在重叠区间里跳到下一句的起点时
  * 仍会命中上一句，导致 activeSubIndex 退回上一句（看起来就是同一句又出现一次）。
  * 因此这里取「最后一个命中」——较晚开始、仍覆盖 t 的那条。
+ *
+ * 另外，t 落在某句 startTime 略前一点点（seek 量化误差，见 START_BOUNDARY_EPSILON）
+ * 时也视为命中该句，避免首尾相接的边界上「下一句」跳转失效。
  *
  * @param {Array} subs 字幕数组
  * @param {number} time 当前播放时间（秒）
@@ -79,7 +88,9 @@ export function findActiveSubtitleIndex(subs, time) {
   for (let i = subs.length - 1; i >= 0; i--) {
     const sub = subs[i]
     if (!sub) continue
-    if (t >= Number(sub.startTime) && t <= Number(sub.endTime)) return i
+    const start = Number(sub.startTime)
+    const end = Number(sub.endTime)
+    if (t >= start - START_BOUNDARY_EPSILON && t <= end) return i
   }
   return -1
 }

@@ -7,6 +7,7 @@ dist
 .gitignore
 *.md
 !README.md
+scripts
 download_*.sh
 download_*.py
 fetch_*.sh

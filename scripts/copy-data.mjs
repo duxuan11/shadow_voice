@@ -6,7 +6,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { resolveDataDir } from './dataDir.cjs'
+import { resolveDataDir } from '../server/lib/dataDir.cjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')

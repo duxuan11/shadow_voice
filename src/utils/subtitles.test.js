@@ -109,6 +109,29 @@ describe('findActiveSubtitleIndex', () => {
     assert.equal(findActiveSubtitleIndex(overlap, 10.5), 0)
   })
 
+  it('首尾相接的边界：seek 略早于 startTime 仍选下一句（回归：下一句切不动）', () => {
+    // 实测视频 timescale 量化后 seek 到 65.133 会得到 65.132999…
+    // 上句 endTime === 下句 startTime，微小偏差不得退回上一句
+    const contiguous = [
+      { startTime: 61.233, endTime: 65.133, textEn: 'A' },
+      { startTime: 65.133, endTime: 67.233, textEn: 'B' },
+      { startTime: 67.233, endTime: 69.666, textEn: 'C' },
+    ]
+    assert.equal(findActiveSubtitleIndex(contiguous, 65.132999), 1)
+    assert.equal(findActiveSubtitleIndex(contiguous, 65.132998), 1)
+    assert.equal(findActiveSubtitleIndex(contiguous, 67.232998), 2)
+  })
+
+  it('明显落在间隙时仍返回 -1（容差不吞掉真实间隙）', () => {
+    const subs2 = [
+      { startTime: 0, endTime: 2, textEn: 'A' },
+      { startTime: 3, endTime: 5, textEn: 'B' },
+    ]
+    assert.equal(findActiveSubtitleIndex(subs2, 2.5), -1)
+    assert.equal(findActiveSubtitleIndex(subs2, 2.998), -1)
+    assert.equal(findActiveSubtitleIndex(subs2, 2.9995), 1)
+  })
+
   it('空 / 非数组输入安全返回 -1', () => {
     assert.equal(findActiveSubtitleIndex([], 0), -1)
     assert.equal(findActiveSubtitleIndex(null, 0), -1)

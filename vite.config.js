@@ -6,7 +6,7 @@ import fs from 'fs'
 import { pipeline } from 'stream'
 import process from 'node:process'
 import { fileURLToPath } from 'url'
-import { resolveDataDir } from './scripts/dataDir.cjs'
+import { resolveDataDir } from './server/lib/dataDir.cjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
