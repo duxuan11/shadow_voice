@@ -8,7 +8,7 @@ import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
 import { mergeAdjacentDuplicateSubtitles, findActiveSubtitleIndex } from '../utils/subtitles'
-import { extractChunks, CHUNK_TYPE_LABELS } from '../utils/chunks'
+import { extractChunks } from '../utils/chunks'
 import { mark as markPractice, loadOne, firstUnpracticedIndex, addIndex } from '../utils/practiceRecords'
 
 function formatTime(seconds) {
@@ -74,6 +74,7 @@ export default function VideoDetail() {
   const [showExport, setShowExport] = useState(false)
   const [isWordCardOpen, setIsWordCardOpen] = useState(false)
   const [wordCardTab, setWordCardTab] = useState('words')
+  const [wordcard, setWordcard] = useState(null) // 落盘的 /data/videos/<dir>/wordcard.json（可选增强）
   const [blindRevealedIds, setBlindRevealedIds] = useState(new Set())
 
   const [vocabulary, setVocabulary] = useState([])
@@ -110,8 +111,14 @@ export default function VideoDetail() {
     fetch('/data/consolidated.json').then(r => r.json()).then(videos => {
       const found = videos.find(v => v.id === id)
       if (found) {
-        const subsUrl = `/data/videos/${encodeURIComponent(found.episode_dir)}/subtitles.json`
-        fetch(subsUrl).then(r => r.json()).then(subs => {
+        const dir = encodeURIComponent(found.episode_dir)
+        setWordcard(null) // 切换视频时先清空旧词卡，避免短暂串数据
+        // 词卡为可选增强：缺失 / 请求失败都不影响主流程
+        fetch(`/data/videos/${dir}/wordcard.json`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(wc => setWordcard(wc && Array.isArray(wc.keywords) ? wc : null))
+          .catch(() => setWordcard(null))
+        fetch(`/data/videos/${dir}/subtitles.json`).then(r => r.json()).then(subs => {
           setVideo({ ...found, subtitles: mergeAdjacentDuplicateSubtitles(Array.isArray(subs) ? subs : []) })
           setLoading(false)
         }).catch(() => {
@@ -236,24 +243,37 @@ export default function VideoDetail() {
   }
 
   // ── Derived data ──
+  // 词卡数据优先用落盘的 wordcard.json（AI 生成，含中文释义）；
+  // 没有时回退到运行时推导（highlightWords / 本地语块规则），保证老数据不回归。
   const derivedData = useMemo(() => {
-    if (!video || !video.subtitles) return { keywords: [], chunks: [], expressions: [] }
+    if (!video || !video.subtitles) return { keywords: [], phrases: [], expressions: [] }
+    if (wordcard) {
+      return {
+        keywords: Array.isArray(wordcard.keywords) ? wordcard.keywords : [],
+        phrases: Array.isArray(wordcard.phrases) ? wordcard.phrases : [],
+        expressions: Array.isArray(wordcard.expressions) ? wordcard.expressions : [],
+      }
+    }
     const keywordMap = new Map(); const expressions = []
     for (const sub of video.subtitles) {
       if (sub.highlightWords) {
         for (const kw of sub.highlightWords) {
-          if (!keywordMap.has(kw)) keywordMap.set(kw, { word: kw, count: 1, times: [sub.startTime] })
+          if (!keywordMap.has(kw)) keywordMap.set(kw, { word: kw, meaning: '', count: 1, times: [sub.startTime] })
           else { const e = keywordMap.get(kw); e.count++; e.times.push(sub.startTime) }
         }
       }
       if (sub.annotations && Object.keys(sub.annotations).length > 0) expressions.push(sub)
     }
+    const phrases = extractChunks(video.subtitles).map(c => ({
+      text: c.text, meaning: c.gloss, count: c.count, startTime: c.startTime,
+      sentenceEn: c.sentenceEn, sentenceCn: c.sentenceCn,
+    }))
     return {
       keywords: [...keywordMap.values()].sort((a, b) => b.count - a.count),
-      chunks: extractChunks(video.subtitles),
+      phrases,
       expressions: expressions.length > 0 ? expressions : video.subtitles.filter(s => s.textEn && s.textEn.length > 40).slice(0, 20),
     }
-  }, [video])
+  }, [video, wordcard])
 
   // ── Active subtitle tracking ──
   // 有匹配字幕时更新；落在时间间隙（无匹配）时保留上一条，避免高亮消失与跟随跳变
@@ -1322,7 +1342,7 @@ export default function VideoDetail() {
             <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl mb-[18px] border border-slate-200/30">
               {[
                 { id: 'words', label: '重点单词' },
-                { id: 'chunks', label: '核心语块' },
+                { id: 'phrases', label: '常用短语' },
                 { id: 'expressions', label: '地道表达' },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setWordCardTab(tab.id)}
@@ -1332,56 +1352,57 @@ export default function VideoDetail() {
               ))}
             </div>
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {wordCardTab === 'words' && derivedData.keywords.map((kw, i) => (
-                <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
-                  onClick={() => { jumpToSubtitle(kw.times[0]); setIsWordCardOpen(false) }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                        <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{kw.word}</h4>
-                        <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded-md font-mono">/{kw.word}/</span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-slate-500 mt-1">出现 {kw.count} 次 · {formatTime(kw.times[0])}</p>
-                    </div>
-                    <div className="flex items-center space-x-1.5 shrink-0">
-                      <button onClick={e => { e.stopPropagation(); speakWord(kw.word) }}
-                        className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors" title="点击发音">
-                        <Volume2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={e => { e.stopPropagation(); pushToVocab(kw.word) }}
-                        className="h-[22px] w-[22px] rounded-md border flex items-center justify-center transition-all cursor-pointer border-slate-300 hover:border-indigo-500 bg-white"
-                        title="记单词">
-                        <Star className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {wordCardTab === 'chunks' && (
-                derivedData.chunks.length > 0 ? derivedData.chunks.map((chunk, i) => (
+              {wordCardTab === 'words' && (
+                derivedData.keywords.length > 0 ? derivedData.keywords.map((kw, i) => (
                   <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
-                    onClick={() => { jumpToSubtitle(chunk.startTime); setIsWordCardOpen(false) }}>
+                    onClick={() => { jumpToSubtitle(kw.times?.[0] ?? 0); setIsWordCardOpen(false) }}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{chunk.text}</h4>
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100/55 px-1.5 rounded-md">{CHUNK_TYPE_LABELS[chunk.type] || chunk.type}</span>
-                          {chunk.count > 1 && <span className="text-[9px] font-bold text-slate-400">×{chunk.count}</span>}
+                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{kw.word}</h4>
+                          {kw.meaning && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded-md">{kw.meaning}</span>}
                         </div>
-                        <p className="text-[11px] font-bold text-slate-600 mt-1">{chunk.gloss}</p>
+                        <p className="text-[11px] font-semibold text-slate-500 mt-1">出现 {kw.count} 次 · {formatTime(kw.times?.[0] ?? 0)}</p>
                       </div>
-                      <button onClick={e => { e.stopPropagation(); speakWord(chunk.text.replace(/\.\.\./g, ' ').replace(/\s+/g, ' ').trim()) }}
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <button onClick={e => { e.stopPropagation(); speakWord(kw.word) }}
+                          className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors" title="点击发音">
+                          <Volume2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); pushToVocab(kw.word) }}
+                          className="h-[22px] w-[22px] rounded-md border flex items-center justify-center transition-all cursor-pointer border-slate-300 hover:border-indigo-500 bg-white"
+                          title="记单词">
+                          <Star className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )) : <div className="text-center py-8 text-xs text-slate-400">暂无重点单词</div>
+              )}
+              {wordCardTab === 'phrases' && (
+                derivedData.phrases.length > 0 ? derivedData.phrases.map((phrase, i) => (
+                  <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
+                    onClick={() => { jumpToSubtitle(phrase.startTime); setIsWordCardOpen(false) }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{phrase.text}</h4>
+                          {phrase.count > 1 && <span className="text-[9px] font-bold text-slate-400">×{phrase.count}</span>}
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-600 mt-1">{phrase.meaning}</p>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); speakWord(phrase.text.replace(/\.\.\./g, ' ').replace(/\s+/g, ' ').trim()) }}
                         className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors shrink-0" title="点击发音">
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     <div className="mt-2 pt-2 border-t border-slate-50">
-                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{chunk.sentenceEn}</p>
-                      {chunk.sentenceCn && <p className="text-[11px] text-slate-400 leading-relaxed">{chunk.sentenceCn}</p>}
+                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{phrase.sentenceEn}</p>
+                      {phrase.sentenceCn && <p className="text-[11px] text-slate-400 leading-relaxed">{phrase.sentenceCn}</p>}
                     </div>
-                    <p className="text-[10px] font-bold text-slate-300 mt-1.5 font-mono">{formatTime(chunk.startTime)}</p>
+                    <p className="text-[10px] font-bold text-slate-300 mt-1.5 font-mono">{formatTime(phrase.startTime)}</p>
                   </div>
-                )) : <div className="text-center py-8 text-xs text-slate-400">暂未提取到语块</div>
+                )) : <div className="text-center py-8 text-xs text-slate-400">暂无常用短语</div>
               )}
               {wordCardTab === 'expressions' && (
                 derivedData.expressions.length > 0 ? derivedData.expressions.map((sub, i) => (
@@ -1389,6 +1410,7 @@ export default function VideoDetail() {
                     onClick={() => { jumpToSubtitle(sub.startTime); setIsWordCardOpen(false) }}>
                     <h4 className="text-xs font-extrabold text-indigo-950 tracking-wide">{sub.textEn}</h4>
                     <p className="text-[11px] font-bold text-slate-600 mt-1">{sub.textCn}</p>
+                    {sub.meaning && <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{sub.meaning}</p>}
                   </div>
                 )) : <div className="text-center py-8 text-xs text-slate-400">暂无地道口语表达</div>
               )}

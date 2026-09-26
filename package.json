@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "node --env-file-if-exists=.env server/index.cjs",
     "build": "vite build && node --env-file-if-exists=.env scripts/copy-data.mjs",
+    "wordcards": "node --env-file-if-exists=.env scripts/build-wordcards.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

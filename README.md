@@ -24,6 +24,13 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 - 自动记录观看历史
 - 字幕导出功能
 
+### 🧠 智能重点词卡
+- 抽屉式词卡：**重点单词 / 常用短语 / 地道表达** 三个 tab
+- 重点单词带**中文释义**、出现次数与首次时间，点击卡片跳转到对应字幕
+- 每条视频的数据落盘在 `data/videos/<episode_dir>/wordcard.json`，进视频页时按需加载
+- 数据由 AI **一次性生成并落盘**（见下方 `npm run wordcards`）；AI 只选词/写释义，时间戳、频次、例句由本地字幕扫描回填
+- 未生成词卡的视频自动回退到运行时推导（字幕 `highlightWords` + 本地语块规则）
+
 ### ✍️ 听写模式（核心特色）
 - 逐句播放音频 → 用户听写输入 → **即时拼写检查**
 - 拼写检查引擎：自动忽略标点/大小写差异，逐词标记 **正确/错误/遗漏/多余**
@@ -156,13 +163,16 @@ shadow_voice/
 │   ├── index.css                # 全局样式（31K）
 │   ├── context/
 │   │   └── AuthContext.jsx      # 认证上下文（login/register/logout/authFetch）
-│   └── pages/
-│       ├── Library.jsx          # 视频库（搜索/筛选/分页）
-│       ├── VideoDetail.jsx      # 视频播放 + 双语字幕 + 查词
-│       ├── DictationPage.jsx    # 听写模式（核心特色）
-│       ├── LearningRecords.jsx  # 学习记录（观看历史/生词本）
-│       ├── Profile.jsx          # 个人资料页（学习统计）
-│       └── Login.jsx            # 登录/注册页面
+│   ├── pages/
+│   │   ├── Library.jsx          # 视频库（搜索/筛选/分页）
+│   │   ├── VideoDetail.jsx      # 视频播放 + 双语字幕 + 查词 + 智能词卡
+│   │   ├── DictationPage.jsx    # 听写模式（核心特色）
+│   │   ├── LearningRecords.jsx  # 学习记录（观看历史/生词本）
+│   │   ├── Profile.jsx          # 个人资料页（学习统计）
+│   │   └── Login.jsx            # 登录/注册页面
+│   └── utils/                   # 纯函数工具
+│       ├── chunks.js            # 本地语块规则（核心语块）
+│       └── wordcard.js          # 词卡数据构建（AI 结果回填时间/频次）
 │
 ├── public/                      # 静态资源
 ├── dist/                        # 构建产物
@@ -170,6 +180,8 @@ shadow_voice/
 ├── download_videos.sh           # 批量下载视频
 ├── download_thumbnails.sh       # 批量下载缩略图
 ├── download_missing.py          # 补下缺失视频
+├── scripts/
+│   └── build-wordcards.mjs      # AI 生成每条视频的 wordcard.json（npm run wordcards）
 ├── vite.config.js               # Vite 配置（代理 + 数据服务插件）
 ├── package.json
 └── eslint.config.js
@@ -186,6 +198,7 @@ shadow_voice/
 3. **下载缩略图** → `./download_thumbnails.sh`
 4. **下载视频** → `./download_videos.sh`（可选，用于本地播放）
 5. **数据汇总** → `python3 data/process_data.py`（合并为 `consolidated.json` + `meta.json`）
+6. **生成智能词卡** → `npm run wordcards`（读取每条视频的 `subtitles.json`，由 AI 选词/写释义，落盘 `data/videos/<episode_dir>/wordcard.json`）
 
 前端直接读取 `data/` 目录下的 JSON 文件（开发时通过 Vite 自定义插件 `/data/` 路由提供静态文件服务）。
 
@@ -229,6 +242,10 @@ shadow_voice/
 - 前端开发：`npm run dev`（Vite 热更新）
 - 后端开发：`npm run server`（nodemon 未配置，需要手动重启）
 - 代码检查：`npm run lint`
+- 生成/刷新智能词卡：`npm run wordcards`（需 `.env` 配好 `AI_API_KEY`）
+  - `npm run wordcards -- --force` 全量重新生成（默认跳过已有的）
+  - `npm run wordcards -- --video <id|目录名>` 只处理某条视频
+  - `npm run wordcards -- --dry` 只调 AI 预览条数，不写文件
 - 热更新期间 `/data/` 下的 JSON 文件变更会立即反映到页面
 
 ---
