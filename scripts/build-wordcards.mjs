@@ -47,7 +47,7 @@ function buildTranscript(subtitles) {
 function buildPrompt(title, subtitles) {
   const system = [
     '你是英语学习内容编辑。根据给定视频字幕，挑选值得学习的重点单词、常用短语和地道表达。',
-    '只输出 JSON，不要任何解释或 Markdown 代码块。',
+    '只输出一个紧凑的单行 JSON 对象，不要换行、不要缩进、不要 Markdown 代码块、不要任何解释。',
   ].join('\n')
   const user = [
     `视频标题：${title || '(未命名)'}`,
@@ -81,6 +81,30 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
+// 生成 + 解析 AI 返回的 JSON；解析失败时把错误反馈给模型重试，
+// 应对模型偶发输出「JSON 后跟多余内容」或「数组内缺逗号」等情况。
+const MAX_JSON_ATTEMPTS = 3
+
+async function generateJsonWithRetry(messages) {
+  let lastError = null
+  for (let attempt = 1; attempt <= MAX_JSON_ATTEMPTS; attempt++) {
+    const content = await chat(messages, { temperature: 0.3, maxTokens: 8000, timeoutMs: 180000 })
+    try {
+      return extractJson(content)
+    } catch (err) {
+      lastError = err
+      messages.push(
+        { role: 'assistant', content },
+        {
+          role: 'user',
+          content: `你刚才的输出无法解析为 JSON（错误：${err.message}）。请重新只输出一个合法的 JSON 对象，不要包含任何解释、注释、Markdown 代码块或多余内容。`,
+        },
+      )
+    }
+  }
+  throw new Error(`AI 连续 ${MAX_JSON_ATTEMPTS} 次输出非法 JSON：${lastError?.message}`)
+}
+
 async function processEpisode(epDir, videosDir) {
   const subsPath = path.join(videosDir, epDir, 'subtitles.json')
   const infoPath = path.join(videosDir, epDir, 'info.json')
@@ -104,8 +128,7 @@ async function processEpisode(epDir, videosDir) {
     return { epDir, status: 'skip', reason: 'wordcard.json exists (--force to overwrite)' }
   }
 
-  const content = await chat(buildPrompt(info.title, subtitles), { temperature: 0.3, maxTokens: 3000 })
-  const aiJson = extractJson(content)
+  const aiJson = await generateJsonWithRetry(buildPrompt(info.title, subtitles))
   const wordcard = buildWordcard(subtitles, aiJson, {
     videoId,
     generatedAt: new Date().toISOString(),
