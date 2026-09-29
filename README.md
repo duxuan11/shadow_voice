@@ -25,8 +25,9 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 - 字幕导出功能
 
 ### 🧠 智能重点词卡
-- 抽屉式词卡：**重点单词 / 常用短语 / 地道表达** 三个 tab
-- 重点单词带**中文释义**、出现次数与首次时间，点击卡片跳转到对应字幕
+- 抽屉式词卡：**单词 / 短语 / 核心短语** 三个 tab
+- 单词带**中文释义与英文音标（IPA）**、出现次数与首次时间，点击卡片跳转到对应字幕
+- 每个词条都有**「加入生词本」按钮**（PC 鼠标 / 手机、平板触屏通用），已加入状态跨设备同步
 - 每条视频的数据落盘在 `data/videos/<episode_dir>/wordcard.json`，进视频页时按需加载
 - 数据由 AI **一次性生成并落盘**（见下方 `npm run wordcards`）；AI 只选词/写释义，时间戳、频次、例句由本地字幕扫描回填
 - 未生成词卡的视频自动回退到运行时推导（字幕 `highlightWords` + 本地语块规则）
@@ -54,7 +55,7 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 
 ### 📊 学习记录
 - **观看历史**：最近看过的 50 个视频（登录用户存服务端，手机/电脑互通；游客仅存本机）
-- **生词本**：收藏的所有单词，按时间倒序，可删除
+- **生词本**：视频词卡里的单词 / 短语 / 核心短语都能收藏；同一内容跨视频去重为一条并保留多个来源视频，可按类型筛选、点击来源回到对应视频词卡、触屏可移除
 - **听写进度**（已关联到每个视频）
 
 ### 🔐 用户系统
@@ -172,7 +173,9 @@ shadow_voice/
 │   │   └── Login.jsx            # 登录/注册页面
 │   └── utils/                   # 纯函数工具
 │       ├── chunks.js            # 本地语块规则（核心语块）
-│       └── wordcard.js          # 词卡数据构建（AI 结果回填时间/频次）
+│       ├── wordcard.js          # 词卡数据构建（AI 结果回填时间/频次）
+│       ├── vocabulary.js        # 生词本统一数据模型 / 去重 key
+│       └── phonetics.js         # 英文音标（IPA）查找（数据见 src/data/phonetics.js）
 │
 ├── public/                      # 静态资源
 ├── dist/                        # 构建产物
@@ -181,7 +184,8 @@ shadow_voice/
 ├── download_thumbnails.sh       # 批量下载缩略图
 ├── download_missing.py          # 补下缺失视频
 ├── scripts/
-│   └── build-wordcards.mjs      # AI 生成每条视频的 wordcard.json（npm run wordcards）
+│   ├── build-wordcards.mjs      # AI 生成每条视频的 wordcard.json（npm run wordcards）
+│   └── build-phonetics.mjs      # 由 ipa-dict 生成 src/data/phonetics.js（npm run phonetics）
 ├── vite.config.js               # Vite 配置（代理 + 数据服务插件）
 ├── package.json
 └── eslint.config.js
@@ -214,9 +218,9 @@ shadow_voice/
 | GET | `/api/auth/stats` | 学习统计（听写次数/生词数/平均分） | ✅ |
 | GET | `/api/dictation/:videoId` | 获取听写进度 | ✅ |
 | PUT | `/api/dictation/:videoId` | 保存听写进度 | ✅ |
-| GET | `/api/vocab` | 获取生词列表 | ✅ |
-| POST | `/api/vocab` | 添加生词 | ✅ |
-| DELETE | `/api/vocab/:word` | 删除生词 | ✅ |
+| GET | `/api/vocab` | 获取生词列表（统一模型：content/translation/type/phonetic/sources） | ✅ |
+| POST | `/api/vocab` | 添加单词/短语（按规范化内容去重、合并来源视频） | ✅ |
+| DELETE | `/api/vocab/:word` | 按规范化内容删除生词 | ✅ |
 | GET | `/api/progress/:videoId` | 获取视频观看进度 | ✅ |
 | PUT | `/api/progress/:videoId` | 保存视频观看进度 | ✅ |
 | GET | `/api/history` | 获取观看历史（最近 50 条） | ✅ |
@@ -243,6 +247,7 @@ shadow_voice/
 - 后端开发：`npm run server`（nodemon 未配置，需要手动重启）
 - 代码检查：`npm run lint`
 - 生成/刷新智能词卡：`npm run wordcards`（需 `.env` 配好 `AI_API_KEY`）
+- 生成/刷新英文音标表：`npm run phonetics`（读取 DATA_DIR 下的词卡/字幕词表，用 `ipa-dict` 生成 `src/data/phonetics.js`；结果已提交仓库，前端无运行时依赖）
   - `npm run wordcards -- --force` 全量重新生成（默认跳过已有的）
   - `npm run wordcards -- --video <id|目录名>` 只处理某条视频
   - `npm run wordcards -- --dry` 只调 AI 预览条数，不写文件
