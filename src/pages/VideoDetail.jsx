@@ -4,17 +4,24 @@ import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         ChevronLeft, ChevronRight, Repeat, BookOpen,
         List, Mic, PenTool, Languages, RotateCcw, CheckCircle2, AlertCircle,
-        Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle } from 'lucide-react'
+        Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle, Loader2, Check } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
 import { mergeAdjacentDuplicateSubtitles, findActiveSubtitleIndex } from '../utils/subtitles'
 import { extractChunks } from '../utils/chunks'
 import { mark as markPractice, loadOne, firstUnpracticedIndex, addIndex } from '../utils/practiceRecords'
+import { getPhonetic } from '../utils/phonetics'
+import { normalizeVocabKey, buildVocabPayload, vocabKeys, findVocabEntry } from '../utils/vocabulary'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+// 词卡条目的 DOM id，供生词本「来源视频」跳转后定位。
+function cardDomId(content) {
+  return `wc-${normalizeVocabKey(content).replace(/\s+/g, '-')}`
 }
 
 const SYNONYMS = {
@@ -78,6 +85,8 @@ export default function VideoDetail() {
   const [blindRevealedIds, setBlindRevealedIds] = useState(new Set())
 
   const [vocabulary, setVocabulary] = useState([])
+  const [vocabBusy, setVocabBusy] = useState(() => new Set())
+  const [vocabToast, setVocabToast] = useState(null)
   const [bookmarkedIds, setBookmarkedIds] = useState([])
 
   // Cloze state
@@ -105,6 +114,8 @@ export default function VideoDetail() {
   const playerContainerRef = useRef(null)
   const lastProgressReportRef = useRef(0)
   const viewRecordedRef = useRef(null)
+  const notifyTimerRef = useRef(null)
+  const deepLinkDoneRef = useRef(false)
 
   // ── Data loading ──
   useEffect(() => {
@@ -130,6 +141,28 @@ export default function VideoDetail() {
   }, [id])
 
   useEffect(() => { authFetch('/vocab').then(r => r.json()).then(d => setVocabulary(d.vocabulary || [])).catch(() => {}) }, [id, authFetch])
+
+  // 生词本「来源视频」跳回：?card=1&word=...&type=... → 打开词卡并定位到条目
+  useEffect(() => {
+    if (deepLinkDoneRef.current || !video) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('card') !== '1') return
+    deepLinkDoneRef.current = true
+    const word = params.get('word') || ''
+    const type = params.get('type')
+    setIsWordCardOpen(true)
+    if (type === 'phrase') setWordCardTab('phrases')
+    else if (type === 'core_phrase') setWordCardTab('expressions')
+    else setWordCardTab('words')
+    let tries = 0
+    const timer = window.setInterval(() => {
+      tries += 1
+      const el = document.getElementById(cardDomId(word))
+      if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); window.clearInterval(timer) }
+      else if (tries > 12) window.clearInterval(timer)
+    }, 150)
+    return () => window.clearInterval(timer)
+  }, [video])
 
   // ── 练习记录：读取已练句下标（登录用户），用于「已练」标志与切 tab 续练 ──
   useEffect(() => {
@@ -429,10 +462,104 @@ export default function VideoDetail() {
   const cycleLoop = () => { const m = ['off', 'sentence', 'all']; const n = m[(m.indexOf(loopMode) + 1) % 3]; setLoopMode(n); setIsLooping(n !== 'off'); const vid = videoRef.current; if (vid) vid.loop = n === 'all'; if (n !== 'sentence') { setLoopStart(null); setLoopEnd(null) }; setShowLoopPicker(false) }
   useEffect(() => { const vid = videoRef.current; if (!vid) return; vid.volume = muted ? 0 : volume; vid.playbackRate = playbackRate }, [volume, muted, playbackRate])
 
-  // ── Vocabulary ──
-  const pushToVocab = async (word) => {
-    const cw = word.replace(/[^a-zA-Z']/g, '').toLowerCase(); if (cw.length < 2) return
-    try { const r = await authFetch('/vocab', { method: 'POST', body: JSON.stringify({ word: cw, videoId: id, videoTitle: video?.title }) }); if (r.ok) { const d = await authFetch('/vocab').then(r => r.json()); setVocabulary(d.vocabulary || []) } } catch { /* ignore */ }
+  // ── Vocabulary（词卡 → 生词本）──
+  const vocabKeysSet = useMemo(() => vocabKeys(vocabulary), [vocabulary])
+
+  const notify = useCallback((message) => {
+    setVocabToast(message)
+    window.clearTimeout(notifyTimerRef.current)
+    notifyTimerRef.current = window.setTimeout(() => setVocabToast(null), 2200)
+  }, [])
+
+  const addToVocab = useCallback(async (payload) => {
+    if (!payload || !payload.word) return
+    if (isGuest) { notify('登录后才能保存到生词本'); return }
+    setVocabBusy(prev => new Set(prev).add(payload.word))
+    try {
+      const r = await authFetch('/vocab', { method: 'POST', body: JSON.stringify(payload) })
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setVocabulary(prev => {
+          const rest = prev.filter(v => (v.word || normalizeVocabKey(v.content)) !== payload.word)
+          return d.entry ? [d.entry, ...rest] : rest
+        })
+        notify(`已加入生词本 · ${payload.content}`)
+      } else {
+        notify('加入失败，请重试')
+      }
+    } catch {
+      notify('网络错误，加入失败')
+    } finally {
+      setVocabBusy(prev => { const n = new Set(prev); n.delete(payload.word); return n })
+    }
+  }, [authFetch, isGuest, notify])
+
+  const removeFromVocab = useCallback(async (content) => {
+    const key = normalizeVocabKey(content)
+    if (!key) return
+    if (isGuest) { notify('登录后才能操作生词本'); return }
+    setVocabBusy(prev => new Set(prev).add(key))
+    try {
+      const r = await authFetch(`/vocab/${encodeURIComponent(key)}`, { method: 'DELETE' })
+      if (r.ok) {
+        setVocabulary(prev => prev.filter(v => (v.word || normalizeVocabKey(v.content)) !== key))
+        notify('已从生词本移除')
+      } else {
+        notify('移除失败，请重试')
+      }
+    } catch {
+      notify('网络错误，移除失败')
+    } finally {
+      setVocabBusy(prev => { const n = new Set(prev); n.delete(key); return n })
+    }
+  }, [authFetch, isGuest, notify])
+
+  // 字幕点词/弹窗收藏：沿用原有入口，补充音标与释义
+  const pushToVocab = (word) => {
+    const content = String(word ?? '').trim()
+    const key = normalizeVocabKey(content)
+    if (!content || !key) return
+    addToVocab({
+      content,
+      word: key,
+      translation: SYNONYMS[key]?.cn || '',
+      type: 'word',
+      phonetic: getPhonetic(content),
+      videoId: id,
+      videoTitle: video?.title,
+    })
+  }
+
+  // 词卡上的收藏按钮（PC + 触屏通用）。
+  // 三种状态：未加入 / 已加入（但本视频不是来源，可把本视频补记为来源）/ 本视频已加入。
+  // 全局移除统一在生词本页面操作，避免在词卡误删多来源条目。
+  const renderVocabToggle = (cardType, item, phonetic) => {
+    const payload = buildVocabPayload({ cardType, item, videoId: id, videoTitle: video?.title, phonetic })
+    if (!payload) return null
+    const entry = findVocabEntry(vocabulary, payload.word)
+    const inVocab = !!entry
+    const inThisVideo = !!entry && Array.isArray(entry.sources) && entry.sources.some(s => s && s.videoId === id)
+    const busy = vocabBusy.has(payload.word)
+    const label = busy ? '处理中' : inThisVideo ? '已加入' : inVocab ? '加入本视频' : '加入生词本'
+    return (
+      <button
+        type="button"
+        className={`vocab-toggle${inThisVideo ? ' is-added' : ''}`}
+        disabled={busy || inThisVideo}
+        aria-pressed={inThisVideo}
+        aria-label={inThisVideo ? '已加入生词本' : inVocab ? '加入本视频来源' : '加入生词本'}
+        title={inThisVideo ? '已加入生词本（在「学习记录 · 生词本」中可移除）' : ''}
+        onClick={(e) => {
+          e.stopPropagation(); e.preventDefault()
+          if (busy || inThisVideo) return
+          addToVocab(payload)
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {busy ? <Loader2 className="vocab-toggle-icon vocab-spin" /> : inThisVideo ? <Check className="vocab-toggle-icon" /> : <Star className="vocab-toggle-icon" />}
+        <span className="vocab-toggle-label">{label}</span>
+      </button>
+    )
   }
 
   const handleWordClick = (word, e) => {
@@ -952,8 +1079,8 @@ export default function VideoDetail() {
                   <button onClick={() => speakWord(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer" title="发音">
                     <Volume2 className="h-5 w-5" />
                   </button>
-                  <button onClick={() => pushToVocab(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition cursor-pointer" title={vocabulary.some(v => v.word.toLowerCase() === wordPopup.word.toLowerCase()) ? '已收藏' : '收藏单词'}>
-                    <Heart className={`h-5 w-5 ${vocabulary.some(v => v.word.toLowerCase() === wordPopup.word.toLowerCase()) ? 'text-red-300 fill-red-300' : 'text-white'}`} />
+                  <button onClick={() => pushToVocab(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition cursor-pointer" title={vocabKeysSet.has(wordPopup.word) ? '已收藏' : '收藏单词'}>
+                    <Heart className={`h-5 w-5 ${vocabKeysSet.has(wordPopup.word) ? 'text-red-300 fill-red-300' : 'text-white'}`} />
                   </button>
                   <button onClick={() => setWordPopup(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer">
                     <X className="h-5 w-5" />
@@ -967,9 +1094,14 @@ export default function VideoDetail() {
                     {wordPopup.synonyms.map((s, i) => <span key={i} className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg">{s}</span>)}
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg w-full justify-center">
-                  <Star className="h-3.5 w-3.5" /> 已添加至生词本 ({vocabulary.length})
-                </div>
+                <button
+                  type="button"
+                  onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word)}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg w-full justify-center cursor-pointer transition-colors ${vocabKeysSet.has(wordPopup.word) ? 'text-amber-600 bg-amber-50' : 'text-indigo-600 bg-indigo-50'}`}>
+                  {vocabKeysSet.has(wordPopup.word)
+                    ? <><Check className="h-3.5 w-3.5" /> 已加入生词本</>
+                    : <><Star className="h-3.5 w-3.5" /> 加入生词本 · 共 {vocabulary.length}</>}
+                </button>
               </div>
             </div>
           </>
@@ -1309,9 +1441,14 @@ export default function VideoDetail() {
                 {wordPopup.synonyms.map((s, i) => <span key={i} className="text-[11px] px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-lg cursor-pointer hover:bg-purple-500/35 transition-all">{s}</span>)}
               </div>
             )}
-            <div className="flex items-center gap-1.5 text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg w-full justify-center">
-              <Star className="h-3 w-3" /> 已添加至生词本 ({vocabulary.length})
-            </div>
+            <button
+              type="button"
+              onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word)}
+              className={`flex items-center gap-1.5 text-[10px] px-3 py-1.5 rounded-lg w-full justify-center cursor-pointer transition-colors ${vocabKeysSet.has(wordPopup.word) ? 'text-amber-400 bg-amber-500/10' : 'text-indigo-300 bg-indigo-500/15'}`}>
+              {vocabKeysSet.has(wordPopup.word)
+                ? <><Check className="h-3 w-3" /> 已加入生词本</>
+                : <><Star className="h-3 w-3" /> 加入生词本 · 共 {vocabulary.length}</>}
+            </button>
           </div>
         )}
       </div>
@@ -1341,9 +1478,9 @@ export default function VideoDetail() {
             </div>
             <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl mb-[18px] border border-slate-200/30">
               {[
-                { id: 'words', label: '重点单词' },
-                { id: 'phrases', label: '常用短语' },
-                { id: 'expressions', label: '地道表达' },
+                { id: 'words', label: '单词' },
+                { id: 'phrases', label: '短语' },
+                { id: 'expressions', label: '核心短语' },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setWordCardTab(tab.id)}
                   className={`py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer transition-all ${wordCardTab === tab.id ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}>
@@ -1353,69 +1490,78 @@ export default function VideoDetail() {
             </div>
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1" style={{ scrollbarWidth: 'thin' }}>
               {wordCardTab === 'words' && (
-                derivedData.keywords.length > 0 ? derivedData.keywords.map((kw, i) => (
-                  <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
-                    onClick={() => { jumpToSubtitle(kw.times?.[0] ?? 0); setIsWordCardOpen(false) }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{kw.word}</h4>
-                          {kw.meaning && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded-md">{kw.meaning}</span>}
+                derivedData.keywords.length > 0 ? derivedData.keywords.map((kw, i) => {
+                  const phonetic = kw.phonetic || getPhonetic(kw.word)
+                  return (
+                    <div key={i} id={cardDomId(kw.word)} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
+                      onClick={() => { jumpToSubtitle(kw.times?.[0] ?? 0); setIsWordCardOpen(false) }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-1">
+                            <h4 className="text-sm font-extrabold text-slate-800 tracking-wide break-words">{kw.word}</h4>
+                            {phonetic && <span className="vocab-phonetic">{phonetic}</span>}
+                            {kw.meaning && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded-md">{kw.meaning}</span>}
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-500 mt-1">出现 {kw.count} 次 · {formatTime(kw.times?.[0] ?? 0)}</p>
                         </div>
-                        <p className="text-[11px] font-semibold text-slate-500 mt-1">出现 {kw.count} 次 · {formatTime(kw.times?.[0] ?? 0)}</p>
-                      </div>
-                      <div className="flex items-center space-x-1.5 shrink-0">
                         <button onClick={e => { e.stopPropagation(); speakWord(kw.word) }}
-                          className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors" title="点击发音">
-                          <Volume2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); pushToVocab(kw.word) }}
-                          className="h-[22px] w-[22px] rounded-md border flex items-center justify-center transition-all cursor-pointer border-slate-300 hover:border-indigo-500 bg-white"
-                          title="记单词">
-                          <Star className="h-3 w-3" />
+                          className="vocab-icon-btn shrink-0" title="点击发音" aria-label="发音">
+                          <Volume2 className="h-4 w-4" />
                         </button>
                       </div>
+                      <div className="mt-2.5 flex justify-end">{renderVocabToggle('words', kw, phonetic)}</div>
                     </div>
-                  </div>
-                )) : <div className="text-center py-8 text-xs text-slate-400">暂无重点单词</div>
+                  )
+                }) : <div className="text-center py-8 text-xs text-slate-400">暂无单词</div>
               )}
               {wordCardTab === 'phrases' && (
                 derivedData.phrases.length > 0 ? derivedData.phrases.map((phrase, i) => (
-                  <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
+                  <div key={i} id={cardDomId(phrase.text)} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
                     onClick={() => { jumpToSubtitle(phrase.startTime); setIsWordCardOpen(false) }}>
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                          <h4 className="text-xs font-extrabold text-slate-800 tracking-wide">{phrase.text}</h4>
+                          <h4 className="text-sm font-extrabold text-slate-800 tracking-wide break-words">{phrase.text}</h4>
                           {phrase.count > 1 && <span className="text-[9px] font-bold text-slate-400">×{phrase.count}</span>}
                         </div>
-                        <p className="text-[11px] font-bold text-slate-600 mt-1">{phrase.meaning}</p>
+                        <p className="text-[11px] font-bold text-slate-600 mt-1 break-words">{phrase.meaning}</p>
                       </div>
                       <button onClick={e => { e.stopPropagation(); speakWord(phrase.text.replace(/\.\.\./g, ' ').replace(/\s+/g, ' ').trim()) }}
-                        className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 rounded-lg cursor-pointer transition-colors shrink-0" title="点击发音">
-                        <Volume2 className="h-3.5 w-3.5" />
+                        className="vocab-icon-btn shrink-0" title="点击发音" aria-label="发音">
+                        <Volume2 className="h-4 w-4" />
                       </button>
                     </div>
                     <div className="mt-2 pt-2 border-t border-slate-50">
-                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{phrase.sentenceEn}</p>
-                      {phrase.sentenceCn && <p className="text-[11px] text-slate-400 leading-relaxed">{phrase.sentenceCn}</p>}
+                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed break-words">{phrase.sentenceEn}</p>
+                      {phrase.sentenceCn && <p className="text-[11px] text-slate-400 leading-relaxed break-words">{phrase.sentenceCn}</p>}
                     </div>
-                    <p className="text-[10px] font-bold text-slate-300 mt-1.5 font-mono">{formatTime(phrase.startTime)}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold text-slate-300 font-mono">{formatTime(phrase.startTime)}</p>
+                      {renderVocabToggle('phrases', phrase, '')}
+                    </div>
                   </div>
-                )) : <div className="text-center py-8 text-xs text-slate-400">暂无常用短语</div>
+                )) : <div className="text-center py-8 text-xs text-slate-400">暂无短语</div>
               )}
               {wordCardTab === 'expressions' && (
                 derivedData.expressions.length > 0 ? derivedData.expressions.map((sub, i) => (
-                  <div key={i} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
+                  <div key={i} id={cardDomId(sub.textEn)} className="p-3.5 border rounded-2xl bg-white border-slate-100/80 hover:border-slate-200 transition-all cursor-pointer"
                     onClick={() => { jumpToSubtitle(sub.startTime); setIsWordCardOpen(false) }}>
-                    <h4 className="text-xs font-extrabold text-indigo-950 tracking-wide">{sub.textEn}</h4>
-                    <p className="text-[11px] font-bold text-slate-600 mt-1">{sub.textCn}</p>
-                    {sub.meaning && <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{sub.meaning}</p>}
+                    <h4 className="text-sm font-extrabold text-indigo-950 tracking-wide break-words">{sub.textEn}</h4>
+                    <p className="text-[11px] font-bold text-slate-600 mt-1 break-words">{sub.textCn}</p>
+                    {sub.meaning && <p className="text-[10px] text-slate-400 mt-1 leading-relaxed break-words">{sub.meaning}</p>}
+                    <div className="mt-2.5 flex justify-end">{renderVocabToggle('expressions', sub, '')}</div>
                   </div>
-                )) : <div className="text-center py-8 text-xs text-slate-400">暂无地道口语表达</div>
+                )) : <div className="text-center py-8 text-xs text-slate-400">暂无核心短语</div>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 生词本操作反馈 toast（PC / 手机通用，不阻塞点击） */}
+      {vocabToast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-24 md:bottom-10 z-[300] bg-slate-900/90 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl pointer-events-none max-w-[90vw] text-center">
+          {vocabToast}
         </div>
       )}
     </>

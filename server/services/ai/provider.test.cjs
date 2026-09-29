@@ -17,6 +17,26 @@ test('extractJson 无 JSON 时抛错', () => {
   assert.throws(() => extractJson('没有 JSON 的纯文本'))
 })
 
+test('extractJson 只取第一个 JSON，忽略其后的第二个 JSON/解释', () => {
+  const text = '{"a": 1}\n{"b": 2}\n以上是结果'
+  assert.deepEqual(extractJson(text), { a: 1 })
+})
+
+test('extractJson 支持顶层数组', () => {
+  assert.deepEqual(extractJson('[1, 2, 3] 后面还有话'), [1, 2, 3])
+})
+
+test('extractJson 遇非法 JSON（括号平衡但语法错）时抛错', () => {
+  // 数组元素之间缺逗号：括号平衡但 JSON.parse 失败
+  const text = '{"a": [1 2]}'
+  assert.throws(() => extractJson(text), /不是合法 JSON/)
+})
+
+test('extractJson 跳过字符串内的花括号/引号', () => {
+  const text = '{"a": "hi } { \\" \\" ", "b": 2}'
+  assert.deepEqual(extractJson(text), { a: 'hi } { " " ', b: 2 })
+})
+
 test('isConfigured 反映 AI_API_KEY', () => {
   assert.equal(typeof isConfigured(), 'boolean')
 })

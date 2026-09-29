@@ -115,6 +115,18 @@ function initSchema() {
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
   // 新增：场景档案列（视频 → AI Role Play）
   ensureColumn('conversation_sessions', 'scene_json', 'TEXT')
+
+  // 生词本统一模型迁移：老 vocabulary 表只有 word/video_id/video_title，补齐新字段。
+  // word 继续作为「去重规范化 key」（兼容旧 UNIQUE(user_id, word)），content 存展示原文。
+  ensureColumn('vocabulary', 'content', 'TEXT')
+  ensureColumn('vocabulary', 'translation', 'TEXT')
+  ensureColumn('vocabulary', 'type', 'TEXT')
+  ensureColumn('vocabulary', 'phonetic', 'TEXT')
+  ensureColumn('vocabulary', 'sources', 'TEXT')
+  // 回填历史行（幂等）：content 缺省取 word，type 缺省按单词处理。
+  // sources 无需回填，读取时由 video_id/video_title 兜底合成。
+  db.run("UPDATE vocabulary SET content = word WHERE content IS NULL OR content = ''")
+  db.run("UPDATE vocabulary SET type = 'word' WHERE type IS NULL OR type = ''")
 }
 
 // sql.js 没有 ALTER TABLE 幂等语法 —— 检查列是否存在，缺失才补
