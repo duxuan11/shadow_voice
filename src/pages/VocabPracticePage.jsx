@@ -41,6 +41,7 @@ export default function VocabPracticePage() {
   const [comboVisible, setComboVisible] = useState(false)
   const [comboText, setComboText] = useState(0)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
 
   const attemptedRef = useRef(new Set())
   const historyRef = useRef(new Map())
@@ -113,11 +114,16 @@ export default function VocabPracticePage() {
 
   function goto(newIndex) {
     snapshotCurrent()
+    setSpeaking(false)
     setIndex(newIndex)
     restoreFor(queue[newIndex] || null)
   }
 
-  function replay() { if (current) speaker.speak(current.content) }
+  function replay() {
+    if (!current) return
+    setSpeaking(true)
+    speaker.speak(current.content, { onEnd: () => setSpeaking(false) })
+  }
   function revealAnswer() { setRevealed(true) }
   function goBack() { navigate('/profile') }
 
@@ -231,6 +237,7 @@ export default function VocabPracticePage() {
     setSlotValues([])
     setResult(null)
     setRevealed(false)
+    setSpeaking(false)
     if (nextQueue.length === 0 || index >= nextQueue.length) {
       speaker.stop()
       setQueue(nextQueue)
@@ -270,7 +277,7 @@ export default function VocabPracticePage() {
           </div>
 
           <div className="vp-corner">
-            <button type="button" className="vp-icon-btn" data-tip="再听一次 (Ctrl+Space)" aria-label="再听一次" onClick={replay}><Volume2 size={18} /></button>
+            <button type="button" className={`vp-icon-btn${speaking ? ' is-playing' : ''}`} data-tip="再听一次 (Ctrl+Space)" aria-label="再听一次" onClick={replay}><Volume2 size={18} /></button>
             <button type="button" className="vp-icon-btn" data-tip="快捷键 (?)" aria-label="快捷键帮助" onClick={() => setHelpOpen(true)}><HelpCircle size={18} /></button>
             <button type="button" className="vp-icon-btn" data-tip="退出 (Esc)" aria-label="退出" onClick={goBack}><X size={18} /></button>
           </div>

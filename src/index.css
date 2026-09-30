@@ -4116,7 +4116,9 @@
   .vp-page { padding: 12px 10px calc(16px + env(safe-area-inset-bottom)); align-items: flex-start; }
   .vp-card { min-height: 0; padding: 18px 16px 22px; border-radius: 20px; }
   .vp-main { min-height: 0; padding-top: 40px; }
-  .vp-progress-bar { width: 80px; }
+  .vp-toolbar { flex-wrap: wrap; padding-right: 0; row-gap: 6px; }
+  .vp-progress { width: 100%; margin-left: 0; }
+  .vp-progress-bar { width: auto; flex: 1; }
   .vp-cn { font-size: 15px; }
   .vp-finish { grid-template-columns: 1fr; gap: 20px; }
   .vp-finish-title { font-size: 26px; }
@@ -4126,6 +4128,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .vp-card, .vp-combo { animation: none; }
+  .vp-progress-fill { transition: none; }
 }
 .vp-verdict { font-size: 14px; font-weight: 600; text-align: center; margin: 0; }
 .vp-verdict.is-correct { color: #16a34a; }
@@ -4136,3 +4139,25 @@
 
 /* 生词本示例句中文标注 */
 .vocab-cn-tag { display: inline-block; margin-left: 6px; font-size: 11px; color: #4f46e5; background: #eef2ff; border-radius: 6px; padding: 1px 6px; }
+
+.vp-page [data-tip] { position: relative; }
+.vp-page [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: #1e293b;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 60;
+}
+.vp-page [data-tip]:hover::after,
+.vp-page [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
