@@ -3989,201 +3989,142 @@
   .vocab-help { animation: none; }
 }
 
-/* ===== Vocab Practice — dark immersive stage (A) ===== */
-.vocab-practice-page {
-  color: #e8ecf8;
-  background:
-    radial-gradient(900px 520px at 50% 12%, rgba(99, 102, 241, 0.22), transparent 62%),
-    linear-gradient(180deg, #0b1020 0%, #131a35 46%, #1a1440 100%);
+/* ===== Vocab Practice — white stage ===== */
+.vp-page {
+  --vp-ink: #1e293b;
+  --vp-ink-soft: #64748b;
+  --vp-primary: #4f46e5;
+  --vp-accent: #2563eb;
+  --vp-violet: #7c3aed;
+  --vp-line: #e8ecf7;
   min-height: 100vh;
+  background: #ffffff;
+  color: var(--vp-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
 }
-.vocab-practice-page .dictation-title,
-.vocab-practice-page .back-btn { color: #cbd5f5; }
-.vocab-practice-page .dictation-card {
+.vp-stage { width: min(860px, 100%); }
+@keyframes vpCardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.vp-card {
   position: relative;
-  min-height: 520px;
-  border-radius: 28px;
-  border: 1px solid rgba(148, 163, 255, 0.16);
-  background: linear-gradient(180deg, #181f3a 0%, #141b33 100%);
-  box-shadow: 0 28px 70px rgba(4, 8, 24, 0.6);
   display: flex;
   flex-direction: column;
+  min-height: 520px;
+  padding: 22px 40px 28px;
+  border: 1px solid var(--vp-line);
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(40, 58, 110, 0.12);
+  animation: vpCardIn 0.28s ease-out both;
 }
-.vocab-practice-page .dictation-card::before {
-  content: '';
-  position: absolute;
-  left: 50%; top: 46%;
-  width: 78%; height: 62%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28), transparent 68%);
-  filter: blur(30px);
-  pointer-events: none;
+.vp-toolbar { display: flex; align-items: center; gap: 12px; padding-right: 140px; min-height: 40px; }
+.vp-type { font-size: 15px; font-weight: 700; color: var(--vp-ink-soft); }
+.vp-progress { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.vp-progress-text { font-size: 12px; color: var(--vp-ink-soft); font-variant-numeric: tabular-nums; }
+.vp-progress-bar { width: 120px; height: 6px; border-radius: 999px; background: #eef2ff; overflow: hidden; }
+.vp-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--vp-primary), var(--vp-violet)); transition: width 0.3s ease; }
+.vp-corner { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; z-index: 2; }
+.vp-icon-btn {
+  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--vp-line); border-radius: 12px; background: #fff; color: var(--vp-ink-soft);
+  cursor: pointer; touch-action: manipulation; position: relative;
 }
-.vocab-practice-page .dictation-card::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 62%;
-  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.05) 50%, transparent 70%);
-  pointer-events: none;
+.vp-icon-btn:hover { color: var(--vp-accent); border-color: #c7d2fe; background: #f8faff; }
+.vp-icon-btn.is-playing { color: var(--vp-accent); background: rgba(37, 99, 235, 0.08); }
+.vp-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 340px; gap: 18px; padding-top: 34px; }
+.vp-cn { font-size: 16px; color: var(--vp-ink-soft); text-align: center; line-height: 1.6; overflow-wrap: anywhere; margin: 0; }
+.vp-cn-tag { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--vp-primary); background: #eef2ff; border-radius: 6px; padding: 1px 6px; vertical-align: middle; }
+.vp-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.vp-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
+  border: 1px solid var(--vp-line); background: #fff; color: #475569; font-size: 13px; font-weight: 600;
+  cursor: pointer; touch-action: manipulation; position: relative;
 }
-.vocab-practice-page .dictation-card > * { position: relative; z-index: 1; }
-@keyframes vocabStageIn {
-  from { opacity: 0; transform: perspective(1200px) translateY(36px) scale(0.9) rotateX(12deg); }
-  to   { opacity: 1; transform: none; }
-}
-.vocab-card-anim { animation: vocabStageIn 0.5s cubic-bezier(0.16, 1.2, 0.3, 1) both; }
+.vp-btn:hover { background: #f8faff; border-color: #c7d2fe; }
+.vp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.vp-btn--primary { background: linear-gradient(135deg, var(--vp-primary), var(--vp-violet)); border-color: transparent; color: #fff; }
+.vp-btn--danger { color: #dc2626; }
+.vp-btn--danger:hover { background: #fef2f2; border-color: #fca5a5; }
+.vp-keyhints { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.vp-keycap { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 700; font-family: ui-monospace, monospace; }
+.vp-keyhint-label { font-size: 11px; color: #94a3b8; margin-right: 6px; }
 
-/* 槽位 */
-.spell-slots {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 18px 16px;
-  margin: 28px 0 8px;
-}
+.spell-slots { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 16px 14px; margin: 4px 0; }
 .spell-slot-wrap { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
 .spell-slot {
-  box-sizing: content-box;
-  min-width: 2ch;
-  min-height: 44px;
-  touch-action: manipulation;
-  padding: 2px 4px 6px;
-  border: 0;
-  border-bottom: 2px solid rgba(203, 213, 245, 0.35);
-  background: transparent;
-  color: #fff;
-  font-size: clamp(26px, 4vw, 40px);
-  font-weight: 700;
-  text-align: center;
-  outline: none;
-  caret-color: #22d3ee;
+  box-sizing: content-box; min-width: 2ch; min-height: 44px; padding: 2px 4px 6px;
+  border: 0; border-bottom: 2px solid #cbd5e1; background: transparent; color: #1e293b;
+  font-size: clamp(26px, 4vw, 40px); font-weight: 700; text-align: center; outline: none;
+  touch-action: manipulation; caret-color: #2563eb;
 }
-.spell-slot:focus { border-bottom-color: #22d3ee; box-shadow: 0 6px 18px -8px rgba(34, 211, 238, 0.9); }
-.spell-slot.is-correct { border-bottom-color: #34d399; color: #6ee7b7; }
-.spell-slot.is-wrong { border-bottom-color: #f87171; color: #fca5a5; }
-.spell-slot.is-missing { border-bottom-style: dashed; border-bottom-color: #fbbf24; }
-.spell-slot.is-revealed { border-bottom-color: #fbbf24; color: #fde68a; }
-.spell-slot-hint {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #fca5a5;
-  font-weight: 600;
-}
-.spell-slot-hint.is-missing-hint { color: #fbbf24; }
+.spell-slot:focus { border-bottom-color: #2563eb; }
+.spell-slot:focus-visible { outline: 2px solid rgba(37, 99, 235, 0.5); outline-offset: 4px; }
+.spell-slot.is-correct { border-bottom-color: #16a34a; color: #15803d; }
+.spell-slot.is-wrong { border-bottom-color: #dc2626; color: #b91c1c; }
+.spell-slot.is-missing { border-bottom-style: dashed; border-bottom-color: #d97706; }
+.spell-slot.is-revealed { border-bottom-color: #d97706; color: #b45309; }
+.spell-slot-hint { margin-top: 4px; font-size: 12px; color: #b91c1c; font-weight: 600; }
+.spell-slot-hint.is-missing-hint { color: #b45309; }
 
-/* 深色下的辅助元素 */
-.vocab-practice-page .dictation-hint .dictation-chinese { background: rgba(255,255,255,0.06); color: #cbd5f5; border-left-color: #6366f1; }
-.vocab-practice-page .dictation-chinese-placeholder { background: rgba(255,255,255,0.04); color: #94a3b8; border-color: rgba(255,255,255,0.15); }
-.vocab-practice-page .dictation-audio-bar { background: rgba(99,102,241,0.14); }
-.vocab-practice-page .dictation-action-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); color: #dbe3fb; }
-.vocab-practice-page .dictation-action-btn:hover { background: rgba(255,255,255,0.12); }
-.vocab-practice-page .dictation-action-btn.submit-btn { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: #fff; }
-.vocab-practice-page .vocab-practice-btn { background: rgba(99,102,241,0.18); border-color: rgba(148,163,255,0.35); color: #c7d2fe; }
-.vocab-practice-page .vocab-type-badge { background: rgba(99,102,241,0.2); color: #c7d2fe; }
-.vocab-practice-page .dictation-progress-bar { background: rgba(255,255,255,0.1); }
-.vocab-practice-page .vocab-keycap { border-color: rgba(148,163,255,0.4); background: rgba(99,102,241,0.16); color: #c7d2fe; }
-.vocab-practice-page .vocab-keyhint-label { color: #94a3b8; }
-.vocab-practice-page .stat-item { color: #a5b4fc; }
-.vocab-practice-page .stat-item strong { color: #fff; }
-.vocab-practice-page .finished-stat-value { color: #fff; }
-.vocab-practice-page .finished-stat-label { color: #a5b4fc; }
-.vocab-practice-page .vocab-practice-verdict.is-correct { color: #6ee7b7; }
-.vocab-practice-page .vocab-practice-verdict.is-wrong { color: #fca5a5; }
+.vp-finish { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 28px; align-items: center; width: 100%; }
+.vp-finish-title { font-size: clamp(28px, 3.6vw, 40px); font-weight: 900; letter-spacing: -0.02em; color: var(--vp-ink); margin: 0 0 18px; }
+.vp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vp-stat { border: 1px solid var(--vp-line); border-radius: 14px; padding: 14px 16px; background: #fbfcff; }
+.vp-stat-value { display: block; font-size: 28px; font-weight: 800; color: var(--vp-primary); }
+.vp-stat-label { font-size: 12px; color: var(--vp-ink-soft); }
+.vp-finish-right { display: flex; flex-direction: column; gap: 16px; }
+.vp-finish-feedback { font-size: 15px; color: var(--vp-ink); margin: 0; }
+.vp-finish-summary { font-size: 13px; color: var(--vp-ink-soft); margin: 0; }
+.vp-finish-actions { display: flex; flex-direction: column; gap: 10px; }
+.vp-cta { height: 50px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; touch-action: manipulation; background: linear-gradient(135deg, var(--vp-primary), var(--vp-violet)); color: #fff; }
+.vp-cta--secondary { background: #fff; color: var(--vp-primary); border: 1px solid var(--vp-line); }
 
-/* 连击加强 */
-.vocab-practice-page .vocab-combo {
-  font-size: 20px;
-  padding: 10px 24px;
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.65), 0 10px 26px rgba(0,0,0,0.4);
-}
+.vp-help-mask { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.35); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.vp-help { width: min(560px, 100%); max-height: 85vh; overflow-y: auto; background: #fff; border-radius: 18px; padding: 22px 24px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25); }
+.vp-help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.vp-help-head h2 { font-size: 18px; font-weight: 700; color: var(--vp-ink); }
+.vp-help-group { margin-top: 14px; }
+.vp-help-group h3 { font-size: 13px; color: var(--vp-ink-soft); font-weight: 600; margin-bottom: 8px; }
+.vp-help-group ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.vp-help-group li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vp-help-keys { display: inline-flex; gap: 4px; }
+.vp-help-label { font-size: 13px; color: #334155; }
 
-/* 帮助面板深色 */
-.vocab-practice-page .vocab-help { background: #161d33; color: #e8ecf8; box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
-.vocab-practice-page .vocab-help-head h2 { color: #fff; }
-.vocab-practice-page .vocab-help-group h3 { color: #a5b4fc; }
-.vocab-practice-page .vocab-help-label { color: #cbd5f5; }
-.vocab-practice-page .vocab-icon-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); color: #cbd5f5; }
-.vocab-practice-page .vocab-icon-btn:hover { color: #22d3ee; }
+@keyframes vpComboIn { 0% { opacity: 0; transform: translate(-50%, 12px) scale(0.6); } 60% { opacity: 1; transform: translate(-50%, 0) scale(1.08); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+.vp-combo { position: fixed; left: 50%; bottom: 120px; z-index: 900; transform: translate(-50%, 0); padding: 10px 22px; border-radius: 999px; background: linear-gradient(135deg, var(--vp-primary), var(--vp-violet)); color: #fff; font-weight: 800; font-size: 18px; box-shadow: 0 10px 26px rgba(79, 70, 229, 0.35); pointer-events: none; animation: vpComboIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
 
-/* 工具栏/设置页深色 */
-.vocab-practice-page .vocab-filter-btn { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); color: #cbd5f5; }
-.vocab-practice-page .vocab-filter-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: #fff; }
-.vocab-practice-page .vocab-filter-count { background: rgba(255, 255, 255, 0.14); color: #c7d2fe; }
-.vocab-practice-page .vocab-filter-btn:hover { border-color: rgba(148, 163, 255, 0.5); color: #fff; }
-.vocab-practice-page .dictation-replay-btn:hover { background: rgba(34, 211, 238, 0.22); }
-.vocab-practice-page .vocab-practice-stats { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: #e8ecf8; }
-.vocab-practice-page .vocab-practice-stats th { background: rgba(255,255,255,0.05); color: #a5b4fc; }
-.vocab-practice-page .vocab-practice-stats td { color: #e8ecf8; border-bottom-color: rgba(255,255,255,0.08); }
+.vp-setup { width: 100%; display: flex; flex-direction: column; gap: 16px; }
+.vp-filter { display: flex; flex-wrap: wrap; gap: 8px; }
+.vp-filter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--vp-line); background: #fff; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation; }
+.vp-filter-btn.active { background: linear-gradient(135deg, var(--vp-primary), var(--vp-violet)); border-color: transparent; color: #fff; }
+.vp-filter-count { font-size: 12px; opacity: 0.8; }
+.vp-stats-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--vp-line); border-radius: 12px; overflow: hidden; }
+.vp-stats-table th, .vp-stats-table td { padding: 10px 14px; font-size: 13px; text-align: left; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+.vp-stats-table th { background: #f8faff; color: var(--vp-ink-soft); font-weight: 600; }
+.prof-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.prof-badge.prof-new { background: #f1f5f9; color: #64748b; }
+.prof-badge.prof-weak { background: #fee2e2; color: #dc2626; }
+.prof-badge.prof-fair { background: #fef3c7; color: #92400e; }
+.prof-badge.prof-good { background: #dcfce7; color: #166534; }
+.vp-empty { text-align: center; color: var(--vp-ink-soft); padding: 40px 0; }
 
 @media (max-width: 640px) {
-  .spell-slots { gap: 14px 12px; margin-top: 20px; }
+  .vp-page { padding: 12px 10px calc(16px + env(safe-area-inset-bottom)); align-items: flex-start; }
+  .vp-card { min-height: 0; padding: 18px 16px 22px; border-radius: 20px; }
+  .vp-main { min-height: 0; padding-top: 40px; }
+  .vp-progress-bar { width: 80px; }
+  .vp-cn { font-size: 15px; }
+  .vp-finish { grid-template-columns: 1fr; gap: 20px; }
+  .vp-finish-title { font-size: 26px; }
+  .vp-finish-actions .vp-cta { width: 100%; }
+  .vp-keyhints { display: none; }
   .spell-slot { font-size: 22px; }
-  .vocab-practice-page .dictation-card { min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vocab-card-anim { animation: none; }
+  .vp-card, .vp-combo { animation: none; }
 }
-
-/* 听练页全屏：覆盖全局 .main-content 内边距（Tailwind 分层工具类不足） */
-.main-content.is-vocab-practice { padding: 0; }
-
-/* ===== Task 4 review fixes ===== */
-
-/* Fix 1: 完成页在深色舞台上白底白字不可见 */
-.vocab-practice-page .dictation-finished {
-  background: #161d33;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  color: #e8ecf8;
-}
-
-/* Fix 2: 浅色悬停态在深色舞台上泄漏 */
-.vocab-practice-page .vocab-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #22d3ee;
-}
-.vocab-practice-page .dictation-action-btn.submit-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border-color: transparent;
-  color: #fff;
-}
-.vocab-practice-page .dictation-action-btn.skip-btn:hover {
-  background: rgba(248, 113, 113, 0.16);
-  border-color: rgba(248, 113, 113, 0.5);
-  color: #fca5a5;
-}
-.vocab-practice-page .dictation-action-btn.replay-btn:hover {
-  background: rgba(34, 211, 238, 0.14);
-  border-color: rgba(34, 211, 238, 0.5);
-  color: #22d3ee;
-}
-.vocab-practice-page .dictation-action-btn.toggle-cn-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Fix 3: 深色音频条中的白色重播胶囊 */
-.vocab-practice-page .dictation-replay-btn {
-  background: rgba(34, 211, 238, 0.14);
-  border-color: rgba(34, 211, 238, 0.4);
-  color: #22d3ee;
-}
-
-/* Fix 5: 槽位键盘焦点指示器 */
-.spell-slot:focus-visible {
-  outline: 2px solid rgba(34, 211, 238, 0.7);
-  outline-offset: 4px;
-}
-
-/* Fix 6: 完成页标题与 CTA 按钮在深色卡片上的配色 */
-.vocab-practice-page .dictation-finished h2 { color: #e8ecf8; }
-.vocab-practice-page .dictation-finished .action-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #dbe3fb;
-}
-.vocab-practice-page .dictation-finished .action-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
+.vp-verdict { font-size: 14px; font-weight: 600; text-align: center; margin: 0; }
+.vp-verdict.is-correct { color: #16a34a; }
+.vp-verdict.is-wrong { color: #dc2626; }

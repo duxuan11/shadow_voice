@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ArrowLeft, Headphones, Eye, EyeOff, Send, ChevronRight, ChevronLeft, RotateCcw, Trash2, RefreshCw, HelpCircle, X,
+  Headphones, Eye, Send, ChevronRight, ChevronLeft, RotateCcw, Trash2, HelpCircle, X, Volume2,
 } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { createSpeaker } from '../utils/tts'
@@ -36,7 +36,6 @@ export default function VocabPracticePage() {
   const [result, setResult] = useState(null) // { statuses, correct }
   const [revealed, setRevealed] = useState(false)
   const [retryToken, setRetryToken] = useState(0)
-  const [showChinese, setShowChinese] = useState(false)
   const [round, setRound] = useState({ attempted: 0, correct: 0 })
   const [combo, setCombo] = useState({ count: 0, max: 0 })
   const [comboVisible, setComboVisible] = useState(false)
@@ -90,7 +89,6 @@ export default function VocabPracticePage() {
     setSlotValues([])
     setResult(null)
     setRevealed(false)
-    setShowChinese(false)
     setRound({ attempted: 0, correct: 0 })
     setPhase('practice')
   }
@@ -120,7 +118,6 @@ export default function VocabPracticePage() {
   }
 
   function replay() { if (current) speaker.speak(current.content) }
-  function toggleChinese() { setShowChinese(v => !v) }
   function revealAnswer() { setRevealed(true) }
   function goBack() { navigate('/profile') }
 
@@ -162,7 +159,6 @@ export default function VocabPracticePage() {
       if (action === 'start' || action === 'again') startByType(selectedType)
       else if (action === 'submit') submit()
       else if (action === 'replay') replay()
-      else if (action === 'toggleChinese') toggleChinese()
       else if (action === 'reveal') revealAnswer()
       else if (action === 'retry') retry()
       else if (action === 'next') next()
@@ -253,287 +249,162 @@ export default function VocabPracticePage() {
   const typeCounts = { all: vocabulary.length }
   for (const f of PRACTICE_TYPE_FILTERS) if (f.id !== 'all') typeCounts[f.id] = summary[f.id].total
 
+  const cnText = current ? (current.translation || current.context_cn || '') : ''
+  const cnIsContext = current ? (!current.translation && !!current.context_cn) : false
+  const typeLabel = current ? (PRACTICE_TYPE_LABELS[current.type] || '单词') : ''
+
   return (
-    <div className="dictation-page vocab-practice-page">
-      <div className="dictation-header">
-        <button onClick={() => navigate('/profile')} className="back-btn">
-          <ArrowLeft size={20} />
-          <span>返回</span>
-        </button>
-        <div className="dictation-header-center">
-          <h1 className="dictation-title">生词听练</h1>
-        </div>
-        <div className="dictation-header-actions">
-          <button
-            type="button"
-            className="vocab-icon-btn"
-            onClick={() => setHelpOpen(true)}
-            data-tip="快捷键 (?)"
-            aria-label="快捷键帮助"
-          >
-            <HelpCircle size={18} />
-          </button>
+    <div className="vp-page">
+      <div className="vp-stage">
+        <div className="vp-card">
+          <div className="vp-toolbar">
+            <span className="vp-type">{phase === 'practice' ? typeLabel : '生词听练'}</span>
+            {phase === 'practice' && (
+              <div className="vp-progress">
+                <span className="vp-progress-text">{index + 1} / {queue.length}</span>
+                <div className="vp-progress-bar">
+                  <div className="vp-progress-fill" style={{ width: `${((index + (result || revealed ? 1 : 0)) / Math.max(1, queue.length)) * 100}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="vp-corner">
+            <button type="button" className="vp-icon-btn" data-tip="再听一次 (Ctrl+Space)" aria-label="再听一次" onClick={replay}><Volume2 size={18} /></button>
+            <button type="button" className="vp-icon-btn" data-tip="快捷键 (?)" aria-label="快捷键帮助" onClick={() => setHelpOpen(true)}><HelpCircle size={18} /></button>
+            <button type="button" className="vp-icon-btn" data-tip="退出 (Esc)" aria-label="退出" onClick={goBack}><X size={18} /></button>
+          </div>
+
+          {isGuest ? (
+            <div className="vp-main"><div className="vp-empty"><p>登录后可练习生词本</p><button className="vp-btn vp-btn--primary" onClick={() => navigate('/login')}>去登录</button></div></div>
+          ) : loadError ? (
+            <div className="vp-main"><div className="vp-empty"><p>{loadError}</p></div></div>
+          ) : phase === 'setup' ? (
+            <div className="vp-main" style={{ justifyContent: 'flex-start' }}>
+              {vocabulary.length === 0 ? (
+                <div className="vp-empty">
+                  <p>生词本还是空的</p>
+                  <p>在视频的「智能重点词卡」中加入生词后即可听练</p>
+                  <button className="vp-btn" onClick={() => navigate('/records')}>去生词本看看</button>
+                </div>
+              ) : (
+                <div className="vp-setup">
+                  <div className="vp-filter" role="tablist" aria-label="听练类型">
+                    {PRACTICE_TYPE_FILTERS.map(f => (
+                      <button key={f.id} role="tab" aria-selected={selectedType === f.id}
+                        className={`vp-filter-btn${selectedType === f.id ? ' active' : ''}`}
+                        onClick={() => setSelectedType(f.id)}>
+                        {f.label}<span className="vp-filter-count">{typeCounts[f.id]}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="vp-stats-table">
+                      <thead><tr><th>类型</th><th>数量</th><th>练习次数</th><th>正确次数</th><th>熟练度</th></tr></thead>
+                      <tbody>
+                        {['word', 'phrase', 'core_phrase'].map(t => {
+                          const s = summary[t]
+                          return (
+                            <tr key={t}>
+                              <td>{PRACTICE_TYPE_LABELS[t]}</td>
+                              <td>{s.total}</td><td>{s.practiceCount}</td><td>{s.correctCount}</td>
+                              <td><span className={`prof-badge prof-${s.proficiency.level}`}>{s.proficiency.label}{s.proficiency.level !== 'new' ? ` ${s.proficiency.percent}%` : ''}</span></td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button className="vp-btn vp-btn--primary" disabled={typeCounts[selectedType] === 0} onClick={() => startByType(selectedType)}>
+                    <Headphones size={18} /><span>开始练习</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : phase === 'practice' && current ? (
+            <div className="vp-main">
+              <p className="vp-cn">{cnText || '暂无中文释义'}{cnIsContext && <span className="vp-cn-tag">例句</span>}</p>
+              <SpellSlots
+                key={`${currentKey}:${retryToken}`}
+                expectedWords={expectedWords}
+                value={slotValues}
+                onChange={setSlotValues}
+                onSubmit={submit}
+                disabled={!!result || revealed}
+                statuses={result?.statuses ?? null}
+                revealed={revealed && !result}
+              />
+              {!result && !revealed ? (
+                <div className="vp-actions">
+                  <button className="vp-btn vp-btn--primary" disabled={!joinSlots(slotValues)} data-tip="提交 (Enter)" onClick={submit}><Send size={16} /><span>提交</span></button>
+                  <button className="vp-btn" data-tip="再听一次 (Ctrl+Space)" onClick={replay}><Volume2 size={16} /><span>再听一次</span></button>
+                  <button className="vp-btn" data-tip="显示答案 (Tab)" onClick={() => setRevealed(true)}><Eye size={16} /><span>显示答案</span></button>
+                </div>
+              ) : (
+                <div className="vp-actions">
+                  <button className="vp-btn" disabled={index === 0} data-tip="上一题 (←)" onClick={prev}><ChevronLeft size={16} /><span>上一题</span></button>
+                  <button className="vp-btn" data-tip="再练一次 (3)" onClick={retry}><RotateCcw size={16} /><span>再练一次</span></button>
+                  <button className="vp-btn" data-tip="再听一次 (1)" onClick={replay}><Volume2 size={16} /><span>再听一次</span></button>
+                  <button className="vp-btn vp-btn--danger" data-tip="移除生词本" onClick={removeCurrent}><Trash2 size={16} /><span>移除</span></button>
+                  <button className="vp-btn vp-btn--primary" data-tip="下一题 (4 / Enter)" onClick={next}><span>{index < queue.length - 1 ? '下一题' : '完成'}</span><ChevronRight size={16} /></button>
+                </div>
+              )}
+              {result && (
+                <p className={`vp-verdict${result.correct ? ' is-correct' : ' is-wrong'}`} role="status">
+                  {result.correct ? '✅ 完全正确' : '❌ 有出入，看槽位上的提示'}
+                </p>
+              )}
+              {!result && !revealed && (
+                <div className="vp-keyhints">
+                  <span className="vp-keycap">Space</span><span className="vp-keyhint-label">下一词</span>
+                  <span className="vp-keycap">Enter</span><span className="vp-keyhint-label">下一词 / 提交</span>
+                  <span className="vp-keycap">Tab</span><span className="vp-keyhint-label">显示答案</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="vp-main">
+              <div className="vp-finish">
+                <div className="vp-finish-left">
+                  <h2 className="vp-finish-title">本轮完成！</h2>
+                  <div className="vp-stats">
+                    <div className="vp-stat"><span className="vp-stat-value">{round.attempted}</span><span className="vp-stat-label">已练</span></div>
+                    <div className="vp-stat"><span className="vp-stat-value">{round.correct}</span><span className="vp-stat-label">正确</span></div>
+                    <div className="vp-stat"><span className="vp-stat-value">{round.attempted ? Math.round((round.correct / round.attempted) * 100) : 0}%</span><span className="vp-stat-label">正确率</span></div>
+                    <div className="vp-stat"><span className="vp-stat-value">{combo.max}</span><span className="vp-stat-label">最长连击</span></div>
+                  </div>
+                </div>
+                <div className="vp-finish-right">
+                  <p className="vp-finish-feedback">{round.correct === 0 ? '继续加油，多听几遍会更好。' : round.correct === round.attempted ? '全部正确，太棒了！' : '不错，错的地方再听一遍。'}</p>
+                  <p className="vp-finish-summary">本轮共 {round.attempted} 题，答对 {round.correct} 题。</p>
+                  <div className="vp-finish-actions">
+                    <button className="vp-cta" onClick={() => startByType(selectedType)}>再来一轮</button>
+                    <button className="vp-cta vp-cta--secondary" onClick={() => navigate('/profile')}>返回个人中心</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {comboVisible && <div key={comboText} className="vp-combo" role="status">连击 x{comboText}</div>}
         </div>
       </div>
 
-      {isGuest ? (
-        <div className="empty-state">
-          <p>登录后可练习生词本</p>
-          <button onClick={() => navigate('/login')}>去登录</button>
-        </div>
-      ) : loadError ? (
-        <div className="empty-state"><p>{loadError}</p></div>
-      ) : phase === 'setup' ? (
-        <div className="vocab-practice-setup">
-          {vocabulary.length === 0 ? (
-            <div className="empty-state">
-              <p>生词本还是空的</p>
-              <span className="empty-hint">在视频的「智能重点词卡」中加入生词后即可听练</span>
-              <button onClick={() => navigate('/records')}>去生词本看看</button>
-            </div>
-          ) : (
-            <>
-              <div className="vocab-filter" role="tablist" aria-label="听练类型">
-                {PRACTICE_TYPE_FILTERS.map(f => (
-                  <button
-                    key={f.id}
-                    role="tab"
-                    aria-selected={selectedType === f.id}
-                    className={`vocab-filter-btn ${selectedType === f.id ? 'active' : ''}`}
-                    onClick={() => setSelectedType(f.id)}
-                  >
-                    {f.label}
-                    <span className="vocab-filter-count">{typeCounts[f.id]}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="vocab-practice-stats-wrap">
-                <table className="vocab-practice-stats">
-                  <thead>
-                    <tr>
-                      <th>类型</th><th>数量</th><th>练习次数</th><th>正确次数</th><th>熟练度</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {['word', 'phrase', 'core_phrase'].map(t => {
-                      const s = summary[t]
-                      return (
-                        <tr key={t}>
-                          <td>{PRACTICE_TYPE_LABELS[t]}</td>
-                          <td className="num">{s.total}</td>
-                          <td className="num">{s.practiceCount}</td>
-                          <td className="num">{s.correctCount}</td>
-                          <td>
-                            <span className={`prof-badge prof-${s.proficiency.level}`}>
-                              {s.proficiency.label}{s.proficiency.level !== 'new' ? ` ${s.proficiency.percent}%` : ''}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <button
-                onClick={() => startByType(selectedType)}
-                disabled={typeCounts[selectedType] === 0}
-                className="dictation-action-btn submit-btn vocab-practice-start"
-              >
-                <Headphones size={18} />
-                <span>开始练习</span>
-              </button>
-            </>
-          )}
-        </div>
-      ) : phase === 'practice' && current ? (
-        <>
-          <div className="dictation-progress-bar">
-            <div
-              className="dictation-progress-fill"
-              style={{ width: `${((index + (result || revealed ? 1 : 0)) / queue.length) * 100}%` }}
-            />
-          </div>
-
-          <div className="dictation-stats">
-            <span className="stat-item">进度 <strong>{index + 1}</strong> / {queue.length}</span>
-            <span className="stat-item stat-done">已练 <strong>{round.attempted}</strong></span>
-            <span className="stat-item stat-correct">正确 <strong>{round.correct}</strong></span>
-            <span className="stat-item stat-accuracy">
-              正确率 <strong>{round.attempted ? Math.round((round.correct / round.attempted) * 100) : 0}%</strong>
-            </span>
-          </div>
-
-          <div key={currentKey} className="dictation-card vocab-card-anim">
-            <div className="vocab-practice-meta">
-              <span className={`vocab-type-badge type-${current.type || 'word'}`}>
-                {PRACTICE_TYPE_LABELS[current.type] || '单词'}
-              </span>
-              <button
-                type="button"
-                className="vocab-practice-btn"
-                onClick={() => setShowChinese(v => !v)}
-              >
-                {showChinese ? <EyeOff size={14} /> : <Eye size={14} />}
-                <span>{showChinese ? '隐藏中文' : '显示中文'}</span>
-              </button>
-            </div>
-
-            <div className={`dictation-hint ${showChinese ? 'visible' : 'hidden'}`}>
-              {showChinese ? (
-                <p className="dictation-chinese">{current.translation || '暂无中文释义'}</p>
-              ) : (
-                <p className="dictation-chinese-placeholder">
-                  <EyeOff size={14} />
-                  <span>中文释义已隐藏</span>
-                </p>
-              )}
-            </div>
-
-            <div className="dictation-audio-bar">
-              <button onClick={() => speaker.speak(current.content)} className="dictation-replay-btn">
-                <Headphones size={18} />
-                <span>再听一次</span>
-              </button>
-              {current.phonetic && <span className="dictation-time">{current.phonetic}</span>}
-            </div>
-
-            <SpellSlots
-              key={`${currentKey}:${retryToken}`}
-              expectedWords={expectedWords}
-              value={slotValues}
-              onChange={setSlotValues}
-              onSubmit={submit}
-              disabled={!!result || revealed}
-              statuses={result?.statuses ?? null}
-              revealed={revealed && !result}
-            />
-
-            {!result && !revealed && (
-              <div className="dictation-input-area">
-                <div className="dictation-action-buttons">
-                  <button
-                    onClick={submit}
-                    disabled={!joinSlots(slotValues)}
-                    className="dictation-action-btn submit-btn"
-                    data-tip="提交 (Enter)"
-                  >
-                    <Send size={16} />
-                    <span>提交</span>
-                  </button>
-                  <button onClick={() => speaker.speak(current.content)} className="dictation-action-btn replay-btn" data-tip="再听一次 (Ctrl+Space)">
-                    <Headphones size={16} />
-                    <span>再听一次</span>
-                  </button>
-                  <button onClick={() => setRevealed(true)} className="dictation-action-btn" data-tip="显示答案 (Tab)">
-                    <Eye size={16} />
-                    <span>显示答案</span>
-                  </button>
-                </div>
-                <div className="vocab-keyhints">
-                  <span className="vocab-keycap">Space</span><span className="vocab-keyhint-label">下一词</span>
-                  <span className="vocab-keycap">Enter</span><span className="vocab-keyhint-label">下一词 / 提交</span>
-                  <span className="vocab-keycap">Ctrl</span><span className="vocab-keycap">Space</span><span className="vocab-keyhint-label">重听</span>
-                  <span className="vocab-keycap">Tab</span><span className="vocab-keyhint-label">显示答案</span>
-                </div>
-              </div>
-            )}
-
-            {(result || revealed) && (
-              <div className="dictation-review">
-                {result && (
-                  <p role="status" className={`vocab-practice-verdict ${result.correct ? 'is-correct' : 'is-wrong'}`}>
-                    {result.correct ? '✅ 完全正确' : '❌ 有出入，看槽位上的提示'}
-                  </p>
-                )}
-
-                <div className="dictation-nav">
-                  <button onClick={prev} disabled={index === 0} className="dictation-action-btn" data-tip="上一题 (←)">
-                    <ChevronLeft size={16} /><span>上一题</span>
-                  </button>
-                  <button onClick={retry} className="dictation-action-btn" data-tip="再练一次 (3)">
-                    <RotateCcw size={16} /><span>再练一次</span>
-                  </button>
-                  <button
-                    onClick={() => speaker.speak(current.content)}
-                    className="dictation-action-btn replay-btn"
-                    data-tip="再听一次 (1)"
-                  >
-                    <Headphones size={16} /><span>再听一次</span>
-                  </button>
-                  <button onClick={removeCurrent} className="dictation-action-btn skip-btn" data-tip="移除生词本">
-                    <Trash2 size={16} /><span>移除生词本</span>
-                  </button>
-                  <button onClick={next} className="dictation-action-btn submit-btn" data-tip="下一题 (4 / Enter)">
-                    <span>{index < queue.length - 1 ? '下一题' : '完成'}</span>
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {comboVisible && (
-            <div key={comboText} className="vocab-combo" role="status">连击 x{comboText}</div>
-          )}
-        </>
-      ) : (
-        <div className="dictation-finished">
-          <div className="finished-icon">🎧</div>
-          <h2>本轮完成！</h2>
-          <div className="finished-stats">
-            <div className="finished-stat">
-              <span className="finished-stat-value">{round.attempted}</span>
-              <span className="finished-stat-label">已练</span>
-            </div>
-            <div className="finished-stat">
-              <span className="finished-stat-value">{round.correct}</span>
-              <span className="finished-stat-label">正确</span>
-            </div>
-            <div className="finished-stat">
-              <span className="finished-stat-value">
-                {round.attempted ? Math.round((round.correct / round.attempted) * 100) : 0}%
-              </span>
-              <span className="finished-stat-label">正确率</span>
-            </div>
-            <div className="finished-stat">
-              <span className="finished-stat-value">{combo.max}</span>
-              <span className="finished-stat-label">最长连击</span>
-            </div>
-          </div>
-          <div className="finished-actions">
-            <button onClick={() => startByType(selectedType)} className="action-btn">
-              <RefreshCw size={18} />
-              <span>再来一轮</span>
-            </button>
-            <button onClick={() => navigate('/profile')} className="action-btn">
-              <ArrowLeft size={18} />
-              <span>返回个人中心</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {helpOpen && (
-        <div className="vocab-help-mask" onClick={() => setHelpOpen(false)}>
-          <div className="vocab-help" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
-            <div className="vocab-help-head">
+        <div className="vp-help-mask" onClick={() => setHelpOpen(false)}>
+          <div className="vp-help" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+            <div className="vp-help-head">
               <h2>键盘快捷键</h2>
-              <button type="button" className="vocab-icon-btn" onClick={() => setHelpOpen(false)} aria-label="关闭">
-                <X size={18} />
-              </button>
+              <button type="button" className="vp-icon-btn" onClick={() => setHelpOpen(false)} aria-label="关闭"><X size={18} /></button>
             </div>
             {SHORTCUT_GROUPS.map(group => (
-              <div key={group.title} className="vocab-help-group">
+              <div key={group.title} className="vp-help-group">
                 <h3>{group.title}</h3>
                 <ul>
                   {group.items.map((item, i) => (
                     <li key={i}>
-                      <span className="vocab-help-keys">
-                        {item.keys.map((k, j) => <span key={j} className="vocab-keycap">{k}</span>)}
-                      </span>
-                      <span className="vocab-help-label">{item.label}</span>
+                      <span className="vp-help-keys">{item.keys.map((k, j) => <span key={j} className="vp-keycap">{k}</span>)}</span>
+                      <span className="vp-help-label">{item.label}</span>
                     </li>
                   ))}
                 </ul>
