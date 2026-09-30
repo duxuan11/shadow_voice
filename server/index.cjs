@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const { resolveDataDir } = require('./lib/dataDir.cjs')
+const { backfillVocabContext } = require('./lib/vocabContext.cjs')
 
 const { getDb } = require('./db.cjs')
 const authRoutes = require('./routes/auth.cjs')
@@ -55,6 +56,8 @@ app.use('/api', (req, res) => {
 // This serves the bind-mounted volume in Docker, or the local
 // data/ directory during development without Vite.
 const dataDir = resolveDataDir(process.env.DATA_DIR, path.join(__dirname, '..'))
+// 一次性离线回填：为缺中文的生词补 context_cn（失败不阻塞启动）
+getDb().then(() => backfillVocabContext(dataDir)).catch(err => console.error('[vocabContext] 回填失败:', err?.message || err))
 app.use('/data', express.static(dataDir, {
   maxAge: '1h',
   setHeaders: (res, filePath) => {

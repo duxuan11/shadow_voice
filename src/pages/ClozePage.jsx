@@ -75,6 +75,7 @@ export default function ClozePage() {
   }, [id])
 
   // Generate cloze when sentence changes
+  /* eslint-disable react-hooks/set-state-in-effect -- 切换句子时同步重置填空状态 */
   useEffect(() => {
     if (subtitles.length === 0 || finished) return
     const sub = subtitles[currentIndex]
@@ -85,6 +86,7 @@ export default function ClozePage() {
     setSubmitted(false)
     setResults({})
   }, [currentIndex, subtitles, difficulty, finished])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const playAudio = () => {
     const audio = audioRef.current
