@@ -38,14 +38,14 @@
 ```js
 // 返回动作 id 或 null（null = 不拦截，交给浏览器/输入框）
 resolveShortcut({
-  key,        // KeyboardEvent.key
-  ctrlKey,    // boolean
-  metaKey,    // boolean
-  shiftKey,   // boolean
-  phase,      // 'setup' | 'typing' | 'review' | 'finished'
-  revealed,   // 对照态是否已「显示答案」
-  hasResult,  // 是否已提交过（有比对结果）
-  helpOpen,   // 快捷键面板是否打开
+  key,         // KeyboardEvent.key
+  ctrlKey,     // boolean
+  metaKey,     // boolean
+  shiftKey,    // boolean
+  altKey,      // boolean
+  phase,       // 'setup' | 'typing' | 'review' | 'finished'
+  helpOpen,    // 快捷键面板是否打开
+  inputFocused,// 焦点是否在输入框/可编辑元素
 }) -> Action | null
 
 // Action ∈
@@ -68,6 +68,7 @@ SHORTCUT_GROUPS  // [{ title, items: [{ keys: ['Enter'], label: '提交' }] }]
 | 按键 | 动作 |
 | --- | --- |
 | `Enter`（无 Shift） | `submit`（输入为空则不提交，由页面守卫） |
+| `Tab`（无 Shift） | `reveal`（显示答案；页面进入对照态后 Tab 不再被拦截） |
 | `Shift + Enter` | 不拦截（换行） |
 | `Ctrl/⌘ + Space` 或 `Alt + R` | `replay` |
 | `Ctrl/⌘ + H` | `toggleChinese` |
@@ -79,7 +80,6 @@ SHORTCUT_GROUPS  // [{ title, items: [{ keys: ['Enter'], label: '提交' }] }]
 | --- | --- |
 | `Enter` / `Space` | `next` |
 | `1` | `replay` |
-| `2` | `reveal`（仅在尚未显示答案时有意义） |
 | `3` | `retry` |
 | `4` | `next` |
 | `←` | `prev` |
