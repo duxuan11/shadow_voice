@@ -11,7 +11,6 @@ export const SHORTCUT_GROUPS = [
       { keys: ['Tab'], label: '显示答案' },
       { keys: ['Ctrl/⌘', 'Space'], label: '再听一次' },
       { keys: ['Alt', 'R'], label: '再听一次' },
-      { keys: ['Ctrl/⌘', 'H'], label: '显示 / 隐藏中文' },
       { keys: ['Esc'], label: '返回' },
     ],
   },
@@ -69,7 +68,6 @@ export function resolveShortcut({
       if (key === 'Tab' && !shiftKey) return 'reveal'
       if (mod && key === ' ') return 'replay'
       if (altKey && (key === 'r' || key === 'R')) return 'replay'
-      if (mod && (key === 'h' || key === 'H')) return 'toggleChinese'
     }
     return null
   }
@@ -84,7 +82,6 @@ export function resolveShortcut({
     }
     if (mod && key === ' ') return 'replay'
     if (altKey && (key === 'r' || key === 'R')) return 'replay'
-    if (mod && (key === 'h' || key === 'H')) return 'toggleChinese'
     if (key === 'Tab' && !shiftKey) return 'reveal'
     return null
   }
@@ -97,7 +94,6 @@ export function resolveShortcut({
     if (key === '3' && plain) return 'retry'
     if (key === '4' && plain) return 'next'
     if (altKey && (key === 'r' || key === 'R')) return 'replay'
-    if (mod && (key === 'h' || key === 'H')) return 'toggleChinese'
     return null
   }
 

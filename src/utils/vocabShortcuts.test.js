@@ -21,19 +21,19 @@ test('答题中（输入框聚焦）：只处理不打字冲突的键', () => {
   assert.equal(t({ key: 'Tab', shiftKey: true, inputFocused: true }), null)
   assert.equal(t({ key: ' ', ctrlKey: true, inputFocused: true }), 'replay')
   assert.equal(t({ key: 'R', altKey: true, inputFocused: true }), 'replay')
-  assert.equal(t({ key: 'h', ctrlKey: true, inputFocused: true }), 'toggleChinese')
+  assert.equal(t({ key: 'h', ctrlKey: true, inputFocused: true }), null)
   assert.equal(t({ key: '?', inputFocused: true }), null)
   assert.equal(t({ key: '/', inputFocused: true }), null)
   assert.equal(t({ key: '1', inputFocused: true }), null)
   assert.equal(resolveShortcut({ key: 'Escape', phase: 'typing', inputFocused: true }), 'back')
 })
 
-test('答题中（未聚焦）：Enter 提交、Ctrl+Space/Alt+R 重听、Ctrl+H 中文', () => {
+test('答题中（未聚焦）：Enter 提交、Ctrl+Space/Alt+R 重听', () => {
   assert.equal(t({ key: 'Enter' }), 'submit')
   assert.equal(t({ key: 'Enter', shiftKey: true }), null)
   assert.equal(t({ key: ' ', ctrlKey: true }), 'replay')
   assert.equal(t({ key: 'r', altKey: true }), 'replay')
-  assert.equal(t({ key: 'H', metaKey: true }), 'toggleChinese')
+  assert.equal(t({ key: 'H', metaKey: true }), null)
   assert.equal(t({ key: 'Tab' }), 'reveal')
 })
 
