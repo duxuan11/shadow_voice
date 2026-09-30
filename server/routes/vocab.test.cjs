@@ -211,3 +211,23 @@ test('听练：多用户隔离（只统计本人）', async () => {
   const other = await list(OTHER_USER)
   assert.equal(other.body.vocabulary.find(v => v.word === 'privateword').practice_count, 1)
 })
+
+test('中文兜底：POST 保存 contextCn，GET 返回 context_cn', async () => {
+  await add({ content: 'contextword', type: 'word', contextCn: '这是上下文中文', videoId: 'cx', videoTitle: 'CX' })
+  const { body } = await list()
+  const entry = body.vocabulary.find(v => v.word === 'contextword')
+  assert.equal(entry.context_cn, '这是上下文中文')
+})
+
+test('中文兜底：重复添加不覆盖已有 context_cn', async () => {
+  await add({ content: 'contextkeep', type: 'word', contextCn: '第一句', videoId: 'cx', videoTitle: 'CX' })
+  await add({ content: 'contextkeep', type: 'word', contextCn: '第二句', videoId: 'cx', videoTitle: 'CX' })
+  const { body } = await list()
+  assert.equal(body.vocabulary.find(v => v.word === 'contextkeep').context_cn, '第一句')
+})
+
+test('中文兜底：未传 contextCn 时为「空字符串」', async () => {
+  await add({ content: 'noctx', type: 'word', videoId: 'cx', videoTitle: 'CX' })
+  const { body } = await list()
+  assert.equal(body.vocabulary.find(v => v.word === 'noctx').context_cn, '')
+})

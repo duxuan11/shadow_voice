@@ -123,6 +123,7 @@ function initSchema() {
   ensureColumn('vocabulary', 'type', 'TEXT')
   ensureColumn('vocabulary', 'phonetic', 'TEXT')
   ensureColumn('vocabulary', 'sources', 'TEXT')
+  ensureColumn('vocabulary', 'context_cn', 'TEXT')
   // 回填历史行（幂等）：content 缺省取 word，type 缺省按单词处理。
   // sources 无需回填，读取时由 video_id/video_title 兜底合成。
   db.run("UPDATE vocabulary SET content = word WHERE content IS NULL OR content = ''")

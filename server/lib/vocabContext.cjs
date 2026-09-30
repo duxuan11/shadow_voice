@@ -22,21 +22,9 @@ function loadJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
 }
 
-/**
- * 幂等确保 vocabulary.context_cn 列存在。
- * Task 2 会在 db.cjs 注册该列迁移；这里兜底，保证本模块可独立运行与测试。
- */
-function ensureContextCnColumn(db) {
-  const cols = (db.exec('PRAGMA table_info(vocabulary)')[0]?.values || []).map(r => r[1])
-  if (!cols.includes('context_cn')) {
-    db.run('ALTER TABLE vocabulary ADD COLUMN context_cn TEXT')
-  }
-}
-
 /** 为 translation 为空且 context_cn 为空的生词行补写句子中文（幂等）。 */
 async function backfillVocabContext(dataDir) {
-  const db = await getDb()
-  ensureContextCnColumn(db)
+  await getDb() // 确保 schema 迁移已执行
   const rows = all(
     `SELECT id, word, sources, video_id FROM vocabulary
      WHERE (translation IS NULL OR translation = '')

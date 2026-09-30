@@ -56,6 +56,7 @@ function toEntry(row) {
     content: row.content || row.word,
     word: row.word,
     translation: row.translation || '',
+    context_cn: row.context_cn || '',
     type: row.type || 'word',
     phonetic: row.phonetic || '',
     practice_count: row.practice_count || 0,
@@ -94,6 +95,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
   const type = normalizeType(body.type)
   const translation = String(body.translation ?? '').trim()
+  const contextCn = String(body.contextCn ?? '').trim()
   const phonetic = String(body.phonetic ?? '').trim()
   const videoId = body.videoId ?? null
   const videoTitle = body.videoTitle ?? null
@@ -106,12 +108,13 @@ router.post('/', authMiddleware, async (req, res) => {
       const sources = mergeSources(parseSources(existing), [{ videoId, videoTitle }])
       run(
         `UPDATE vocabulary
-           SET content = ?, translation = ?, type = ?, phonetic = ?, sources = ?,
+           SET content = ?, translation = ?, context_cn = ?, type = ?, phonetic = ?, sources = ?,
                video_id = COALESCE(video_id, ?), video_title = COALESCE(video_title, ?)
          WHERE id = ?`,
         [
           existing.content || rawContent,
           existing.translation || translation,
+          existing.context_cn || contextCn,
           existing.type || type,
           existing.phonetic || phonetic,
           JSON.stringify(sources),
@@ -126,9 +129,9 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const sources = mergeSources([], [{ videoId, videoTitle }])
     const result = run(
-      `INSERT INTO vocabulary (user_id, word, content, translation, type, phonetic, sources, video_id, video_title)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, key, rawContent, translation, type, phonetic, JSON.stringify(sources), videoId, videoTitle]
+      `INSERT INTO vocabulary (user_id, word, content, translation, context_cn, type, phonetic, sources, video_id, video_title)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, key, rawContent, translation, contextCn, type, phonetic, JSON.stringify(sources), videoId, videoTitle]
     )
     const entry = toEntry(get('SELECT * FROM vocabulary WHERE id = ?', [result.lastInsertRowid]))
     res.json({ ok: true, added: true, entry })
