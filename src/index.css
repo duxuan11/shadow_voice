@@ -4001,7 +4001,6 @@
 .vocab-practice-page .back-btn { color: #cbd5f5; }
 .vocab-practice-page .dictation-card {
   position: relative;
-  overflow: hidden;
   min-height: 520px;
   border-radius: 28px;
   border: 1px solid rgba(148, 163, 255, 0.16);
@@ -4022,10 +4021,10 @@
 }
 .vocab-practice-page .dictation-card::after {
   content: '';
-  position: absolute; inset: -40% -20% auto;
-  height: 70%;
-  background: linear-gradient(120deg, transparent 22%, rgba(255, 255, 255, 0.06) 48%, transparent 74%);
-  transform: rotate(-8deg);
+  position: absolute;
+  inset: 0 0 auto;
+  height: 62%;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.05) 50%, transparent 70%);
   pointer-events: none;
 }
 .vocab-practice-page .dictation-card > * { position: relative; z-index: 1; }
@@ -4048,6 +4047,8 @@
 .spell-slot {
   box-sizing: content-box;
   min-width: 2ch;
+  min-height: 44px;
+  touch-action: manipulation;
   padding: 2px 4px 6px;
   border: 0;
   border-bottom: 2px solid rgba(203, 213, 245, 0.35);
@@ -4109,6 +4110,9 @@
 /* 工具栏/设置页深色 */
 .vocab-practice-page .vocab-filter-btn { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); color: #cbd5f5; }
 .vocab-practice-page .vocab-filter-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: #fff; }
+.vocab-practice-page .vocab-filter-count { background: rgba(255, 255, 255, 0.14); color: #c7d2fe; }
+.vocab-practice-page .vocab-filter-btn:hover { border-color: rgba(148, 163, 255, 0.5); color: #fff; }
+.vocab-practice-page .dictation-replay-btn:hover { background: rgba(34, 211, 238, 0.22); }
 .vocab-practice-page .vocab-practice-stats { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: #e8ecf8; }
 .vocab-practice-page .vocab-practice-stats th { background: rgba(255,255,255,0.05); color: #a5b4fc; }
 .vocab-practice-page .vocab-practice-stats td { color: #e8ecf8; border-bottom-color: rgba(255,255,255,0.08); }

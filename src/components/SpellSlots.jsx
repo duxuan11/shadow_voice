@@ -84,6 +84,7 @@ export default function SpellSlots({
               onPaste={e => handlePaste(e, i)}
               onFocus={e => e.target.select()}
               style={{ width: `${Math.max(4, shown.length + 1)}ch` }}
+              aria-invalid={st === 'wrong' || st === 'missing' ? true : undefined}
               spellCheck={false}
               autoComplete="off"
               autoCorrect="off"

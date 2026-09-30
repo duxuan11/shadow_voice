@@ -443,7 +443,7 @@ export default function VocabPracticePage() {
             {(result || revealed) && (
               <div className="dictation-review">
                 {result && (
-                  <p className={`vocab-practice-verdict ${result.correct ? 'is-correct' : 'is-wrong'}`}>
+                  <p role="status" className={`vocab-practice-verdict ${result.correct ? 'is-correct' : 'is-wrong'}`}>
                     {result.correct ? '✅ 完全正确' : '❌ 有出入，看槽位上的提示'}
                   </p>
                 )}

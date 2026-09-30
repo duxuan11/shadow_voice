@@ -5,9 +5,10 @@ export const SHORTCUT_GROUPS = [
   {
     title: '答题中',
     items: [
+      { keys: ['Space'], label: '下一词' },
+      { keys: ['←', '→'], label: '上 / 下一词' },
       { keys: ['Enter'], label: '提交' },
       { keys: ['Tab'], label: '显示答案' },
-      { keys: ['Shift', 'Enter'], label: '换行' },
       { keys: ['Ctrl/⌘', 'Space'], label: '再听一次' },
       { keys: ['Alt', 'R'], label: '再听一次' },
       { keys: ['Ctrl/⌘', 'H'], label: '显示 / 隐藏中文' },
