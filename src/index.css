@@ -3843,14 +3843,15 @@
   font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
 }
 .vocab-keyhint-label { font-size: 11px; color: #94a3b8; }
+.vocab-practice-page .dictation-nav { flex-wrap: wrap; row-gap: 8px; }
 
 /* 图标按钮 + 纯 CSS tooltip */
 .vocab-practice-page .vocab-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: #fff;
@@ -3870,7 +3871,10 @@
   color: #fff;
   font-size: 11px;
   line-height: 1.4;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(280px, 80vw);
+  width: max-content;
+  text-align: center;
   padding: 4px 8px;
   border-radius: 6px;
   opacity: 0;
@@ -3893,7 +3897,10 @@
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 8px;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(280px, 80vw);
+  width: max-content;
+  text-align: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;

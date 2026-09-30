@@ -157,8 +157,6 @@ export default function VocabPracticePage() {
         shiftKey: e.shiftKey,
         altKey: e.altKey,
         phase: shortcutPhase,
-        revealed,
-        hasResult: !!result,
         helpOpen,
         inputFocused,
       })
@@ -535,7 +533,7 @@ export default function VocabPracticePage() {
           </div>
 
           {comboVisible && (
-            <div className="vocab-combo" role="status">连击 x{comboText}</div>
+            <div key={comboText} className="vocab-combo" role="status">连击 x{comboText}</div>
           )}
         </>
       ) : (

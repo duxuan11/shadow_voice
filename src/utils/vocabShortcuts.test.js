@@ -34,6 +34,7 @@ test('答题中（未聚焦）：Enter 提交、Ctrl+Space/Alt+R 重听、Ctrl+H
   assert.equal(t({ key: ' ', ctrlKey: true }), 'replay')
   assert.equal(t({ key: 'r', altKey: true }), 'replay')
   assert.equal(t({ key: 'H', metaKey: true }), 'toggleChinese')
+  assert.equal(t({ key: 'Tab' }), 'reveal')
 })
 
 test('对照中：Enter/Space 下一题，数字 1-4，← 上一题', () => {
@@ -44,12 +45,6 @@ test('对照中：Enter/Space 下一题，数字 1-4，← 上一题', () => {
   assert.equal(r({ key: '3' }), 'retry')
   assert.equal(r({ key: '4' }), 'next')
   assert.equal(r({ key: 'ArrowLeft' }), 'prev')
-})
-
-test('对照中：2 显示答案，但已有结果/已显示时为 null', () => {
-  assert.equal(r({ key: '2', hasResult: false, revealed: false }), 'reveal')
-  assert.equal(r({ key: '2', hasResult: true }), null)
-  assert.equal(r({ key: '2', revealed: true }), null)
 })
 
 test('对照中：修饰键不触发数字/方向键', () => {

@@ -47,8 +47,6 @@ export function resolveShortcut({
   shiftKey = false,
   altKey = false,
   phase = 'setup',
-  revealed = false,
-  hasResult = false,
   helpOpen = false,
   inputFocused = false,
 } = {}) {
@@ -86,6 +84,7 @@ export function resolveShortcut({
     if (mod && key === ' ') return 'replay'
     if (altKey && (key === 'r' || key === 'R')) return 'replay'
     if (mod && (key === 'h' || key === 'H')) return 'toggleChinese'
+    if (key === 'Tab' && !shiftKey) return 'reveal'
     return null
   }
 
@@ -94,7 +93,6 @@ export function resolveShortcut({
     if (key === ' ' && plain) return 'next'
     if (key === 'ArrowLeft' && plain) return 'prev'
     if (key === '1' && plain) return 'replay'
-    if (key === '2' && plain) return hasResult || revealed ? null : 'reveal'
     if (key === '3' && plain) return 'retry'
     if (key === '4' && plain) return 'next'
     if (altKey && (key === 'r' || key === 'R')) return 'replay'
