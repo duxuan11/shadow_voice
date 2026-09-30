@@ -90,7 +90,11 @@ export default function SpellSlots({
               autoCapitalize="off"
               aria-label={`第 ${i + 1} 个词`}
             />
-            {st === 'wrong' && <span className="spell-slot-hint">{expectedWords[i]}</span>}
+            {(st === 'wrong' || st === 'missing') && expectedWords[i] && (
+              <span className={`spell-slot-hint${st === 'missing' ? ' is-missing-hint' : ''}`}>
+                {expectedWords[i]}
+              </span>
+            )}
           </span>
         )
       })}

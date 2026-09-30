@@ -35,6 +35,7 @@ export default function VocabPracticePage() {
   const [slotValues, setSlotValues] = useState([])
   const [result, setResult] = useState(null) // { statuses, correct }
   const [revealed, setRevealed] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
   const [showChinese, setShowChinese] = useState(false)
   const [round, setRound] = useState({ attempted: 0, correct: 0 })
   const [combo, setCombo] = useState({ count: 0, max: 0 })
@@ -209,6 +210,7 @@ export default function VocabPracticePage() {
     setSlotValues(Array.from({ length: expectedWords.length }, () => ''))
     setResult(null)
     setRevealed(false)
+    setRetryToken(t => t + 1)
   }
 
   function next() {
@@ -398,7 +400,7 @@ export default function VocabPracticePage() {
             </div>
 
             <SpellSlots
-              key={currentKey}
+              key={`${currentKey}:${retryToken}`}
               expectedWords={expectedWords}
               value={slotValues}
               onChange={setSlotValues}
@@ -431,7 +433,8 @@ export default function VocabPracticePage() {
                 </div>
                 <div className="vocab-keyhints">
                   <span className="vocab-keycap">Space</span><span className="vocab-keyhint-label">下一词</span>
-                  <span className="vocab-keycap">Enter</span><span className="vocab-keyhint-label">提交</span>
+                  <span className="vocab-keycap">Enter</span><span className="vocab-keyhint-label">下一词 / 提交</span>
+                  <span className="vocab-keycap">Ctrl</span><span className="vocab-keycap">Space</span><span className="vocab-keyhint-label">重听</span>
                   <span className="vocab-keycap">Tab</span><span className="vocab-keyhint-label">显示答案</span>
                 </div>
               </div>
