@@ -56,8 +56,12 @@ function toEntry(row) {
     content: row.content || row.word,
     word: row.word,
     translation: row.translation || '',
+    context_cn: row.context_cn || '',
     type: row.type || 'word',
     phonetic: row.phonetic || '',
+    practice_count: row.practice_count || 0,
+    correct_count: row.correct_count || 0,
+    last_practiced_at: row.last_practiced_at || null,
     sources,
     // 旧字段保留，兼容 Profile 等既有调用方
     video_id: row.video_id || sources[0]?.videoId || null,
@@ -91,6 +95,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
   const type = normalizeType(body.type)
   const translation = String(body.translation ?? '').trim()
+  const contextCn = String(body.contextCn ?? '').trim()
   const phonetic = String(body.phonetic ?? '').trim()
   const videoId = body.videoId ?? null
   const videoTitle = body.videoTitle ?? null
@@ -103,12 +108,13 @@ router.post('/', authMiddleware, async (req, res) => {
       const sources = mergeSources(parseSources(existing), [{ videoId, videoTitle }])
       run(
         `UPDATE vocabulary
-           SET content = ?, translation = ?, type = ?, phonetic = ?, sources = ?,
+           SET content = ?, translation = ?, context_cn = ?, type = ?, phonetic = ?, sources = ?,
                video_id = COALESCE(video_id, ?), video_title = COALESCE(video_title, ?)
          WHERE id = ?`,
         [
           existing.content || rawContent,
           existing.translation || translation,
+          existing.context_cn || contextCn,
           existing.type || type,
           existing.phonetic || phonetic,
           JSON.stringify(sources),
@@ -123,14 +129,42 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const sources = mergeSources([], [{ videoId, videoTitle }])
     const result = run(
-      `INSERT INTO vocabulary (user_id, word, content, translation, type, phonetic, sources, video_id, video_title)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, key, rawContent, translation, type, phonetic, JSON.stringify(sources), videoId, videoTitle]
+      `INSERT INTO vocabulary (user_id, word, content, translation, context_cn, type, phonetic, sources, video_id, video_title)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, key, rawContent, translation, contextCn, type, phonetic, JSON.stringify(sources), videoId, videoTitle]
     )
     const entry = toEntry(get('SELECT * FROM vocabulary WHERE id = ?', [result.lastInsertRowid]))
     res.json({ ok: true, added: true, entry })
   } catch {
     res.status(500).json({ error: '添加失败' })
+  }
+})
+
+// POST /api/vocab/practice — 记录一次听练结果（每道题仅首次提交由前端保证）
+// body: { word: string, correct: boolean }
+router.post('/practice', authMiddleware, async (req, res) => {
+  const body = req.body || {}
+  const key = normalizeKey(body.word)
+  if (!key) return res.status(400).json({ error: '单词/短语不能为空' })
+  if (typeof body.correct !== 'boolean') return res.status(400).json({ error: 'correct 必须为布尔值' })
+
+  await getDb()
+  try {
+    const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
+    if (!existing) return res.status(404).json({ error: '生词不存在' })
+
+    run(
+      `UPDATE vocabulary
+         SET practice_count = COALESCE(practice_count, 0) + 1,
+             correct_count = COALESCE(correct_count, 0) + ?,
+             last_practiced_at = datetime('now')
+       WHERE id = ?`,
+      [body.correct ? 1 : 0, existing.id]
+    )
+    const entry = toEntry(get('SELECT * FROM vocabulary WHERE id = ?', [existing.id]))
+    res.json({ ok: true, entry })
+  } catch {
+    res.status(500).json({ error: '记录失败' })
   }
 })
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Calendar, BarChart3, BookOpen, Star, Clock, Play, ChevronRight, LogOut, Shield } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { User, Mail, Calendar, BarChart3, BookOpen, Star, Headphones, Clock, Play, ChevronRight, LogOut, Shield } from 'lucide-react'
+import { useAuth } from '../context/auth-context'
 
 export default function Profile() {
   const { user, isGuest, logout, authFetch } = useAuth()
@@ -204,26 +204,37 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Recent Vocabulary */}
-      {vocabulary.length > 0 && (
-        <div className="profile-section">
-          <div className="profile-section-header">
-            <h2>
-              <Star size={18} />
-              <span>最近生词</span>
-            </h2>
-            <button className="profile-section-link" onClick={() => navigate('/records')}>
+      {/* 生词本（主入口：个人中心 → 生词本 → 听练） */}
+      <div className="profile-section">
+        <div className="profile-section-header">
+          <h2>
+            <Star size={18} />
+            <span>生词本</span>
+          </h2>
+          <div className="profile-section-actions">
+            <button type="button" className="profile-section-link" onClick={() => navigate('/vocab/practice')}>
+              <Headphones size={16} />
+              <span>听练</span>
+            </button>
+            <button type="button" className="profile-section-link" onClick={() => navigate('/records')}>
               <span>查看全部</span>
               <ChevronRight size={16} />
             </button>
           </div>
+        </div>
+        {vocabulary.length === 0 ? (
+          <div className="profile-empty">
+            <p>还没有生词</p>
+            <span className="empty-hint">在视频的「智能重点词卡」中点击「加入生词本」</span>
+          </div>
+        ) : (
           <div className="profile-vocab-tags">
             {vocabulary.slice(0, 12).map((v, i) => (
-              <span key={i} className="profile-vocab-tag">{v.content || v.word}</span>
+              <span key={i} className="profile-vocab-tag">{(v.translation || v.context_cn || v.content || v.word)}</span>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
