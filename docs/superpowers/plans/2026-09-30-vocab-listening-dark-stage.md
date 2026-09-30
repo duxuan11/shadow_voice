@@ -534,6 +534,7 @@ import { splitToSlots, compareSlots, joinSlots, slotsAllCorrect } from '../utils
   color: #fca5a5;
   font-weight: 600;
 }
+.spell-slot-hint.is-missing-hint { color: #fbbf24; }
 
 /* 深色下的辅助元素 */
 .vocab-practice-page .dictation-hint .dictation-chinese { background: rgba(255,255,255,0.06); color: #cbd5f5; border-left-color: #6366f1; }
