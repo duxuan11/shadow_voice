@@ -3996,7 +3996,6 @@
     radial-gradient(900px 520px at 50% 12%, rgba(99, 102, 241, 0.22), transparent 62%),
     linear-gradient(180deg, #0b1020 0%, #131a35 46%, #1a1440 100%);
   min-height: 100vh;
-  perspective: 1200px;
 }
 .vocab-practice-page .dictation-title,
 .vocab-practice-page .back-btn { color: #cbd5f5; }
@@ -4031,7 +4030,7 @@
 }
 .vocab-practice-page .dictation-card > * { position: relative; z-index: 1; }
 @keyframes vocabStageIn {
-  from { opacity: 0; transform: translateY(36px) scale(0.9) rotateX(12deg); }
+  from { opacity: 0; transform: perspective(1200px) translateY(36px) scale(0.9) rotateX(12deg); }
   to   { opacity: 1; transform: none; }
 }
 .vocab-card-anim { animation: vocabStageIn 0.5s cubic-bezier(0.16, 1.2, 0.3, 1) both; }
@@ -4117,7 +4116,6 @@
 @media (max-width: 640px) {
   .spell-slots { gap: 14px 12px; margin-top: 20px; }
   .spell-slot { font-size: 22px; }
-  .vocab-practice-page { perspective: none; }
   .vocab-practice-page .dictation-card { min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4126,3 +4124,54 @@
 
 /* 听练页全屏：覆盖全局 .main-content 内边距（Tailwind 分层工具类不足） */
 .main-content.is-vocab-practice { padding: 0; }
+
+/* ===== Task 4 review fixes ===== */
+
+/* Fix 1: 完成页在深色舞台上白底白字不可见 */
+.vocab-practice-page .dictation-finished {
+  background: #161d33;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: #e8ecf8;
+}
+
+/* Fix 2: 浅色悬停态在深色舞台上泄漏 */
+.vocab-practice-page .vocab-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #22d3ee;
+}
+.vocab-practice-page .dictation-action-btn.submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-color: transparent;
+  color: #fff;
+}
+.vocab-practice-page .dictation-action-btn.skip-btn:hover {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+}
+.vocab-practice-page .dictation-action-btn.replay-btn:hover {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.5);
+  color: #22d3ee;
+}
+.vocab-practice-page .dictation-action-btn.toggle-cn-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.vocab-practice-page .dictation-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Fix 3: 深色音频条中的白色重播胶囊 */
+.vocab-practice-page .dictation-replay-btn {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.4);
+  color: #22d3ee;
+}
+
+/* Fix 5: 槽位键盘焦点指示器 */
+.spell-slot:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.7);
+  outline-offset: 4px;
+}
