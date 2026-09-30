@@ -880,7 +880,7 @@ git commit -m "style(vocab): 听练页一体化背景/动效/键帽/连击/帮�
 
 在 `README.md` 的「### 🎧 生词听练（听练一体）」小节里追加一行：
 ```markdown
-- **快捷键**：`Enter` 提交/下一题、`Shift+Enter` 换行、`Ctrl+Space`/`Alt+R` 再听一次、`Ctrl+H` 显示中文、`1/2/3/4` 再听/显示答案/再练/下一题、`←` 上一题、`?` 快捷键帮助、`Esc` 返回
+- **快捷键**：`Enter` 提交/下一题、`Shift+Enter` 换行、`Ctrl+Space`/`Alt+R` 再听一次、`Ctrl+H` 显示中文、`Tab` 显示答案、`1/3/4` 再听/再练/下一题、`←` 上一题、`?` 快捷键帮助、`Esc` 返回
 ```
 
 - [ ] **Step 2: 全量验证**
