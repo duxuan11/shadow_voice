@@ -3842,10 +3842,10 @@
   font-weight: 700;
   font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
 }
-.vocab-keyhint-label { font-size: 11px; color: #94a3b8; margin-right: 6px; }
+.vocab-keyhint-label { font-size: 11px; color: #94a3b8; }
 
 /* 图标按钮 + 纯 CSS tooltip */
-.vocab-icon-btn {
+.vocab-practice-page .vocab-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3858,9 +3858,9 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.vocab-icon-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #2563eb; }
-[data-tip] { position: relative; }
-[data-tip]::after {
+.vocab-practice-page .vocab-icon-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #2563eb; }
+.vocab-practice-page [data-tip] { position: relative; }
+.vocab-practice-page [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
   left: 50%;
@@ -3878,8 +3878,8 @@
   transition: opacity 0.15s, transform 0.15s;
   z-index: 50;
 }
-[data-tip]:hover::after,
-[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+.vocab-practice-page [data-tip]:hover::after,
+.vocab-practice-page [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* 正确答案悬浮：音标 + 释义 */
 .vocab-hoverhint { cursor: help; position: relative; }
