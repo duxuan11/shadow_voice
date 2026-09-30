@@ -3786,3 +3786,198 @@
   .vocab-practice-stats td { padding: 8px 10px; font-size: 12px; }
   .vocab-practice-start { width: 100%; justify-content: center; }
 }
+
+/* ===== Vocab Practice — interaction polish ===== */
+.vocab-practice-page {
+  background:
+    radial-gradient(680px 340px at 50% 20%, rgba(99, 102, 241, 0.10), transparent 70%),
+    linear-gradient(180deg, #eef2ff 0%, #f8fafc 42%, #f5f3ff 100%);
+}
+.vocab-practice-page .dictation-card {
+  border-radius: 20px;
+  border-color: #e8ecf7;
+  box-shadow: 0 18px 44px rgba(40, 58, 110, 0.10);
+}
+@keyframes vocabCardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.vocab-card-anim { animation: vocabCardIn 0.3s ease-out both; }
+@keyframes vocabFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.vocab-card-anim .spell-result,
+.vocab-card-anim .spell-answer,
+.vocab-card-anim .vocab-practice-verdict {
+  animation: vocabFadeUp 0.28s ease-out both;
+  animation-delay: 0.08s;
+}
+
+/* 精致输入区 */
+.vocab-practice-page .dictation-input {
+  font-size: 22px;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.vocab-practice-page .dictation-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* 键帽 */
+.vocab-keyhints { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.vocab-keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+}
+.vocab-keyhint-label { font-size: 11px; color: #94a3b8; margin-right: 6px; }
+
+/* 图标按钮 + 纯 CSS tooltip */
+.vocab-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.vocab-icon-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #2563eb; }
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: #1e293b;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 50;
+}
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 正确答案悬浮：音标 + 释义 */
+.vocab-hoverhint { cursor: help; position: relative; }
+.vocab-hoverhint::before {
+  content: attr(data-hint);
+  position: absolute;
+  left: 16px;
+  bottom: calc(100% + 8px);
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 40;
+}
+.vocab-hoverhint:hover::before { opacity: 1; }
+
+/* 连击 */
+@keyframes vocabComboIn {
+  0%   { opacity: 0; transform: translate(-50%, 12px) scale(0.6); }
+  60%  { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.vocab-combo {
+  position: fixed;
+  left: 50%;
+  bottom: 120px;
+  z-index: 900;
+  transform: translate(-50%, 0);
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  box-shadow: 0 10px 26px rgba(79, 70, 229, 0.35);
+  pointer-events: none;
+  animation: vocabComboIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+/* 帮助面板 */
+.vocab-help-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+@keyframes vocabHelpIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+.vocab-help {
+  width: min(560px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  animation: vocabHelpIn 0.25s ease-out both;
+}
+.vocab-help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.vocab-help-head h2 { font-size: 18px; font-weight: 700; color: #1e293b; }
+.vocab-help-group { margin-top: 14px; }
+.vocab-help-group h3 { font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 8px; }
+.vocab-help-group ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.vocab-help-group li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vocab-help-keys { display: inline-flex; gap: 4px; }
+.vocab-help-label { font-size: 13px; color: #334155; }
+
+/* 完成页四张统计卡自适应 */
+.vocab-practice-page .finished-stats { flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .vocab-keyhints { display: none; }
+  .vocab-combo { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .vocab-practice-page .dictation-input { font-size: 18px; }
+  .vocab-help { padding: 18px; }
+  .vocab-practice-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vocab-card-anim,
+  .vocab-card-anim .spell-result,
+  .vocab-card-anim .spell-answer,
+  .vocab-card-anim .vocab-practice-verdict,
+  .vocab-combo,
+  .vocab-help { animation: none; }
+}
