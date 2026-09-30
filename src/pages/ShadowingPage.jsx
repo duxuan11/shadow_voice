@@ -126,7 +126,7 @@ export default function ShadowingPage() {
       mediaRecorderRef.current = recorder
       recorder.start()
       setRecordingState('recording')
-    } catch (_err) {
+    } catch {
       alert('无法访问麦克风，请检查浏览器权限设置')
     }
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { parseResult } from '../utils/aliyunResult'
 import { buildEngineSdkUrl, analyzeEngineSdkBody, micEnvironmentProblem, jssdkNotSupportMessage } from '../utils/engineSdk'
 import { Mic, Square, Loader2, Volume2, ChevronDown } from 'lucide-react'

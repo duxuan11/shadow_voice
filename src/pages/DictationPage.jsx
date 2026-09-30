@@ -1,51 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RotateCcw, EyeOff, Eye, ChevronLeft, ChevronRight, Volume2, Send, SkipForward, Headphones } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
+import { checkSpelling, isAllCorrect } from '../utils/spellCheck'
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-// --- Spell-check engine ---
-function normalizeText(text) {
-  return text.replace(/[^\w\s'-]/g, '').replace(/\s+/g, ' ').trim()
-}
-
-function tokenize(text) {
-  return normalizeText(text).split(' ')
-}
-
-function checkSpelling(userInput, correctText) {
-  const userWords = tokenize(userInput)
-  const correctWords = tokenize(correctText)
-  const maxLen = Math.max(userWords.length, correctWords.length)
-  const results = []
-
-  for (let i = 0; i < maxLen; i++) {
-    const uw = userWords[i]
-    const cw = correctWords[i]
-
-    if (uw === undefined) {
-      // Missing word
-      results.push({ type: 'missing', expected: cw })
-    } else if (cw === undefined) {
-      // Extra word
-      results.push({ type: 'extra', user: uw })
-    } else if (uw.toLowerCase() === cw.toLowerCase()) {
-      results.push({ type: 'correct', word: uw })
-    } else {
-      results.push({ type: 'wrong', user: uw, expected: cw })
-    }
-  }
-  return results
-}
-
-function isAllCorrect(spellResults) {
-  return spellResults.every(r => r.type === 'correct')
 }
 
 // --- Main component ---
