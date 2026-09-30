@@ -324,6 +324,7 @@ export default function VocabPracticePage() {
           ) : phase === 'practice' && current ? (
             <div className="vp-main">
               <p className="vp-cn">{cnText || '暂无中文释义'}{cnIsContext && <span className="vp-cn-tag">例句</span>}</p>
+              {current.phonetic && <p className="vp-phonetic">{current.phonetic}</p>}
               <SpellSlots
                 key={`${currentKey}:${retryToken}`}
                 expectedWords={expectedWords}

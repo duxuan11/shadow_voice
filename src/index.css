@@ -4019,7 +4019,7 @@
   box-shadow: 0 20px 50px rgba(40, 58, 110, 0.12);
   animation: vpCardIn 0.28s ease-out both;
 }
-.vp-toolbar { display: flex; align-items: center; gap: 12px; padding-right: 140px; min-height: 40px; }
+.vp-toolbar { display: flex; align-items: center; gap: 12px; padding-right: 152px; min-height: 40px; }
 .vp-type { font-size: 15px; font-weight: 700; color: var(--vp-ink-soft); }
 .vp-progress { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .vp-progress-text { font-size: 12px; color: var(--vp-ink-soft); font-variant-numeric: tabular-nums; }
@@ -4027,7 +4027,7 @@
 .vp-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--vp-primary), var(--vp-violet)); transition: width 0.3s ease; }
 .vp-corner { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; z-index: 2; }
 .vp-icon-btn {
-  width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--vp-line); border-radius: 12px; background: #fff; color: var(--vp-ink-soft);
   cursor: pointer; touch-action: manipulation; position: relative;
 }
@@ -4036,11 +4036,12 @@
 .vp-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 340px; gap: 18px; padding-top: 34px; }
 .vp-cn { font-size: 16px; color: var(--vp-ink-soft); text-align: center; line-height: 1.6; overflow-wrap: anywhere; margin: 0; }
 .vp-cn-tag { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--vp-primary); background: #eef2ff; border-radius: 6px; padding: 1px 6px; vertical-align: middle; }
+.vp-phonetic { font-size: 13px; color: #94a3b8; margin: -8px 0 0; text-align: center; }
 .vp-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .vp-btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px;
   border: 1px solid var(--vp-line); background: #fff; color: #475569; font-size: 13px; font-weight: 600;
-  cursor: pointer; touch-action: manipulation; position: relative;
+  cursor: pointer; touch-action: manipulation; position: relative; min-height: 44px;
 }
 .vp-btn:hover { background: #f8faff; border-color: #c7d2fe; }
 .vp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -4069,6 +4070,7 @@
 .spell-slot-hint.is-missing-hint { color: #b45309; }
 
 .vp-finish { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 28px; align-items: center; width: 100%; }
+.vp-finish-left { min-width: 0; }
 .vp-finish-title { font-size: clamp(28px, 3.6vw, 40px); font-weight: 900; letter-spacing: -0.02em; color: var(--vp-ink); margin: 0 0 18px; }
 .vp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .vp-stat { border: 1px solid var(--vp-line); border-radius: 14px; padding: 14px 16px; background: #fbfcff; }
@@ -4097,7 +4099,7 @@
 
 .vp-setup { width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .vp-filter { display: flex; flex-wrap: wrap; gap: 8px; }
-.vp-filter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--vp-line); background: #fff; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation; }
+.vp-filter-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--vp-line); background: #fff; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation; min-height: 44px; }
 .vp-filter-btn.active { background: linear-gradient(135deg, var(--vp-primary), var(--vp-violet)); border-color: transparent; color: #fff; }
 .vp-filter-count { font-size: 12px; opacity: 0.8; }
 .vp-stats-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--vp-line); border-radius: 12px; overflow: hidden; }
@@ -4128,3 +4130,6 @@
 .vp-verdict { font-size: 14px; font-weight: 600; text-align: center; margin: 0; }
 .vp-verdict.is-correct { color: #16a34a; }
 .vp-verdict.is-wrong { color: #dc2626; }
+
+/* 听练页全屏：覆盖全局 .main-content 内边距 */
+.main-content.is-vocab-practice { padding: 0; }
