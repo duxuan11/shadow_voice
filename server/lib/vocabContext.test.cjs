@@ -46,4 +46,10 @@ test('backfillVocabContext：为缺中文的生词补 context_cn', async () => {
   // 已有 translation 的条目不回填
   const kept = db.exec("SELECT context_cn FROM vocabulary WHERE word = 'check in'")[0].values[0][0]
   assert.ok(kept == null || kept === '')
+
+  // 幂等：再次回填不应重复写入
+  const second = await backfillVocabContext(tmpDir)
+  assert.equal(second.filled, 0)
+  const still = db.exec("SELECT context_cn FROM vocabulary WHERE word = 'passport'")[0].values[0][0]
+  assert.equal(still, '这是我的护照。')
 })

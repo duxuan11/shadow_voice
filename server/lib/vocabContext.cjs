@@ -60,6 +60,7 @@ async function backfillVocabContext(dataDir) {
   for (const row of rows) {
     let sources = []
     try { sources = JSON.parse(row.sources || '[]') } catch { sources = [] }
+    if (!Array.isArray(sources)) sources = []
     const ids = sources.map(s => s && s.videoId).filter(Boolean)
     if (ids.length === 0 && row.video_id) ids.push(row.video_id)
     let cn = ''
