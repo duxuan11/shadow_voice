@@ -23,7 +23,10 @@ export default function VocabPracticePage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
 
-  const [selectedType, setSelectedType] = useState('all')
+  const [selectedType, setSelectedType] = useState(() => {
+    const t = searchParams.get('type')
+    return ['all', 'word', 'phrase', 'core_phrase'].includes(t) ? t : 'all'
+  })
   const [phase, setPhase] = useState('setup') // setup | practice | finished
   const [queue, setQueue] = useState([])
   const [index, setIndex] = useState(0)
@@ -34,7 +37,6 @@ export default function VocabPracticePage() {
   const [round, setRound] = useState({ attempted: 0, correct: 0 })
 
   const attemptedRef = useRef(new Set())
-  const deepStartedRef = useRef(false)
   const inputRef = useRef(null)
   const speaker = useMemo(() => createSpeaker(authFetch), [authFetch])
 
@@ -42,15 +44,22 @@ export default function VocabPracticePage() {
   const currentKey = current ? (current.word || normalizeVocabKey(current.content)) : ''
   const deepWord = searchParams.get('word') || ''
 
-  // 加载生词本
+  // 加载生词本；若带 ?word= 深链，加载完成后直接单条成轮
   useEffect(() => {
-    if (isGuest) { setLoading(false); return }
+    if (isGuest) return
     authFetch('/vocab')
       .then(r => (r.ok ? r.json() : Promise.reject(new Error('unauthorized'))))
-      .then(data => setVocabulary(data.vocabulary || []))
+      .then(data => {
+        const list = data.vocabulary || []
+        setVocabulary(list)
+        if (deepWord) {
+          const items = buildPracticeQueue(list, { word: deepWord })
+          if (items.length > 0) startRound(items)
+        }
+      })
       .catch(() => setLoadError('加载生词本失败'))
       .finally(() => setLoading(false))
-  }, [authFetch, isGuest])
+  }, [authFetch, isGuest, deepWord])
 
   // 离开页面停止 TTS
   useEffect(() => () => speaker.stop(), [speaker])
@@ -72,15 +81,6 @@ export default function VocabPracticePage() {
     setSelectedType(type)
     startRound(buildPracticeQueue(vocabulary, { type }))
   }
-
-  // 深链 ?word= → 单条成轮
-  useEffect(() => {
-    if (deepStartedRef.current || loading || !deepWord || vocabulary.length === 0) return
-    deepStartedRef.current = true
-    const items = buildPracticeQueue(vocabulary, { word: deepWord })
-    if (items.length > 0) startRound(items)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, vocabulary, deepWord])
 
   // 出题自动播放 TTS
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function VocabPracticePage() {
     }
   }
 
-  if (loading) {
+  if (loading && !isGuest) {
     return <div className="loading-container"><div className="loading-spinner" /><p>加载中...</p></div>
   }
 
