@@ -89,7 +89,8 @@ export function resolveShortcut({
   }
 
   if (phase === 'review') {
-    if (key === 'Enter' || key === ' ') return 'next'
+    if (key === 'Enter') return 'next'
+    if (key === ' ' && plain) return 'next'
     if (key === 'ArrowLeft' && plain) return 'prev'
     if (key === '1' && plain) return 'replay'
     if (key === '2' && plain) return hasResult || revealed ? null : 'reveal'

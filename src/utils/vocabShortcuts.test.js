@@ -23,6 +23,7 @@ test('答题中（输入框聚焦）：只处理不打字冲突的键', () => {
   assert.equal(t({ key: '?', inputFocused: true }), null)
   assert.equal(t({ key: '/', inputFocused: true }), null)
   assert.equal(t({ key: '1', inputFocused: true }), null)
+  assert.equal(resolveShortcut({ key: 'Escape', phase: 'typing', inputFocused: true }), 'back')
 })
 
 test('答题中（未聚焦）：Enter 提交、Ctrl+Space/Alt+R 重听、Ctrl+H 中文', () => {
@@ -36,6 +37,7 @@ test('答题中（未聚焦）：Enter 提交、Ctrl+Space/Alt+R 重听、Ctrl+H
 test('对照中：Enter/Space 下一题，数字 1-4，← 上一题', () => {
   assert.equal(r({ key: 'Enter' }), 'next')
   assert.equal(r({ key: ' ' }), 'next')
+  assert.equal(r({ key: ' ', ctrlKey: true }), null)
   assert.equal(r({ key: '1' }), 'replay')
   assert.equal(r({ key: '3' }), 'retry')
   assert.equal(r({ key: '4' }), 'next')
@@ -48,8 +50,10 @@ test('对照中：2 显示答案，但已有结果/已显示时为 null', () => 
   assert.equal(r({ key: '2', revealed: true }), null)
 })
 
-test('对照中：数字键带修饰键不触发', () => {
+test('对照中：修饰键不触发数字/方向键', () => {
   assert.equal(r({ key: '1', ctrlKey: true }), null)
+  assert.equal(r({ key: '1', shiftKey: true }), null)
+  assert.equal(r({ key: '1', metaKey: true }), null)
   assert.equal(r({ key: 'ArrowLeft', shiftKey: true }), null)
 })
 
