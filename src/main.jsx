@@ -10,6 +10,7 @@ import ShadowingPage from './pages/ShadowingPage'
 import ClozePage from './pages/ClozePage'
 import LearningRecords from './pages/LearningRecords'
 import Profile from './pages/Profile'
+import VocabPracticePage from './pages/VocabPracticePage'
 import Login from './pages/Login'
 import ConversationPage from './pages/ConversationPage'
 import './index.css'
@@ -50,6 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="video/:id/conversation" element={<ConversationPage />} />
             <Route path="records" element={<LearningRecords />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="vocab/practice" element={<VocabPracticePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
