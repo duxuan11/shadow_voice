@@ -2506,6 +2506,15 @@
 }
 .profile-section-link:hover { background: #eff6ff; }
 
+.profile-section-actions { display: flex; align-items: center; gap: 8px; }
+
+.profile-section-actions .profile-section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  touch-action: manipulation;
+}
+
 /* Profile Empty */
 .profile-empty {
   text-align: center;

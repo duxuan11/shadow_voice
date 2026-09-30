@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Clock, Trash2, Play, Star, MessageSquare } from 'lucide-react'
+import { BookOpen, Clock, Trash2, Play, Star, MessageSquare, Headphones } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { proficiencyOf } from '../utils/vocabPractice'
 import {
   normalizeVocabKey,
   filterVocabByType,
@@ -206,6 +207,10 @@ export default function LearningRecords() {
         <div className="records-content">
           {vocabulary.length > 0 && (
             <div className="records-actions">
+              <button onClick={() => navigate('/vocab/practice')} className="vocab-practice-btn">
+                <Headphones size={16} />
+                <span>听练</span>
+              </button>
               <button onClick={clearVocabulary} className="danger-btn">
                 <Trash2 size={16} />
                 <span>清空生词本</span>
@@ -286,17 +291,40 @@ export default function LearningRecords() {
                         </div>
 
                         <div className="vocab-card-foot">
-                          <span className="vocab-date-cell">加入于 {formatVocabDate(entry.created_at)}</span>
-                          <button
-                            type="button"
-                            className="vocab-remove-btn"
-                            onClick={() => removeVocabWord(entry)}
-                            disabled={busy}
-                            aria-label="移除生词"
-                          >
-                            <Trash2 size={16} />
-                            <span>{busy ? '移除中' : '移除'}</span>
-                          </button>
+                          <span className="vocab-date-cell">
+                            加入于 {formatVocabDate(entry.created_at)}
+                            {(() => {
+                              const p = proficiencyOf(entry)
+                              return (
+                                <span className="vocab-stat-badge">
+                                  练习 {entry.practice_count || 0} 次
+                                  {entry.practice_count ? ` · 正确率 ${p.percent}% · ${p.label}` : ' · 未练'}
+                                </span>
+                              )
+                            })()}
+                          </span>
+                          <div className="vocab-card-actions">
+                            <button
+                              type="button"
+                              className="vocab-practice-btn"
+                              onClick={() => navigate(
+                                `/vocab/practice?word=${encodeURIComponent(entry.content || entry.word)}&type=${entry.type || 'word'}`
+                              )}
+                            >
+                              <Headphones size={14} />
+                              <span>听练</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="vocab-remove-btn"
+                              onClick={() => removeVocabWord(entry)}
+                              disabled={busy}
+                              aria-label="移除生词"
+                            >
+                              <Trash2 size={16} />
+                              <span>{busy ? '移除中' : '移除'}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )
