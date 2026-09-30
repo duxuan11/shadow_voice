@@ -6,7 +6,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { createSpeaker } from '../utils/tts'
 import { checkSpelling, isAllCorrect } from '../utils/spellCheck'
-import { normalizeVocabKey, VOCAB_TYPE_LABELS } from '../utils/vocabulary'
+import { normalizeVocabKey } from '../utils/vocabulary'
 import {
   PRACTICE_TYPE_FILTERS,
   PRACTICE_TYPE_LABELS,
@@ -276,7 +276,7 @@ export default function VocabPracticePage() {
           <div className="dictation-card">
             <div className="vocab-practice-meta">
               <span className={`vocab-type-badge type-${current.type || 'word'}`}>
-                {VOCAB_TYPE_LABELS[current.type] || '单词'}
+                {PRACTICE_TYPE_LABELS[current.type] || '单词'}
               </span>
               <button
                 type="button"

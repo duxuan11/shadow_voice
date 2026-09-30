@@ -207,7 +207,7 @@ export default function LearningRecords() {
         <div className="records-content">
           {vocabulary.length > 0 && (
             <div className="records-actions">
-              <button onClick={() => navigate('/vocab/practice')} className="vocab-practice-btn">
+              <button type="button" onClick={() => navigate('/vocab/practice')} className="vocab-practice-btn">
                 <Headphones size={16} />
                 <span>听练</span>
               </button>

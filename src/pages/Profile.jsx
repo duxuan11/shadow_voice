@@ -212,11 +212,11 @@ export default function Profile() {
             <span>生词本</span>
           </h2>
           <div className="profile-section-actions">
-            <button className="profile-section-link" onClick={() => navigate('/vocab/practice')}>
+            <button type="button" className="profile-section-link" onClick={() => navigate('/vocab/practice')}>
               <Headphones size={16} />
               <span>听练</span>
             </button>
-            <button className="profile-section-link" onClick={() => navigate('/records')}>
+            <button type="button" className="profile-section-link" onClick={() => navigate('/records')}>
               <span>查看全部</span>
               <ChevronRight size={16} />
             </button>

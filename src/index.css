@@ -1205,6 +1205,7 @@
   background: #f1f5f9;
   border-radius: 10px;
   border-left: 3px solid #94a3b8;
+  overflow-wrap: anywhere;
 }
 
 .dictation-chinese-placeholder {
@@ -1377,6 +1378,7 @@
   border-radius: 6px;
   font-size: 18px;
   font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow-wrap: anywhere;
 }
 
 .spell-word.spell-right {
@@ -1457,6 +1459,7 @@
   font-weight: 600;
   color: #166534;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 /* Navigation buttons */
@@ -2511,6 +2514,7 @@
 .profile-section-actions .profile-section-link {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: 4px;
   touch-action: manipulation;
 }
@@ -3748,6 +3752,8 @@
 .vocab-practice-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px;
   gap: 4px;
   font-size: 12px;
   padding: 8px 12px;
