@@ -4133,3 +4133,6 @@
 
 /* 听练页全屏：覆盖全局 .main-content 内边距 */
 .main-content.is-vocab-practice { padding: 0; }
+
+/* 生词本示例句中文标注 */
+.vocab-cn-tag { display: inline-block; margin-left: 6px; font-size: 11px; color: #4f46e5; background: #eef2ff; border-radius: 6px; padding: 1px 6px; }

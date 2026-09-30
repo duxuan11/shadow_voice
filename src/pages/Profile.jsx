@@ -230,7 +230,7 @@ export default function Profile() {
         ) : (
           <div className="profile-vocab-tags">
             {vocabulary.slice(0, 12).map((v, i) => (
-              <span key={i} className="profile-vocab-tag">{v.content || v.word}</span>
+              <span key={i} className="profile-vocab-tag">{(v.translation || v.context_cn || v.content || v.word)}</span>
             ))}
           </div>
         )}

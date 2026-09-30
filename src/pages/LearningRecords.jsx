@@ -262,8 +262,11 @@ export default function LearningRecords() {
                           </span>
                         </div>
 
-                        {entry.translation && (
-                          <p className="vocab-card-translation">{entry.translation}</p>
+                        {(entry.translation || entry.context_cn) && (
+                          <p className="vocab-card-translation">
+                            {entry.translation || entry.context_cn}
+                            {!entry.translation && entry.context_cn && <span className="vocab-cn-tag">例句</span>}
+                          </p>
                         )}
 
                         <div className="vocab-card-sources">
