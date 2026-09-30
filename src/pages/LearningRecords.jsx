@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Clock, Trash2, Play, Star, MessageSquare, Headphones } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { proficiencyOf } from '../utils/vocabPractice'
 import {
   normalizeVocabKey,

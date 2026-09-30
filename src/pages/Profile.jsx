@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Mail, Calendar, BarChart3, BookOpen, Star, Headphones, Clock, Play, ChevronRight, LogOut, Shield } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 
 export default function Profile() {
   const { user, isGuest, logout, authFetch } = useAuth()

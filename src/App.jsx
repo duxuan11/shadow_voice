@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { Home, BookOpen, Menu, X, LogOut, User, UserCircle } from 'lucide-react'
-import { useAuth } from './context/AuthContext'
+import { useAuth } from './context/auth-context'
 
 export default function App() {
   const [meta, setMeta] = useState(null)

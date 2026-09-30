@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { ArrowLeft, Download, Play, Pause, Volume2, VolumeX, Maximize2,
         ChevronLeft, ChevronRight, Repeat, BookOpen,
         List, Mic, PenTool, Languages, RotateCcw, CheckCircle2, AlertCircle,
-        Heart, Star, X, Gauge, Globe, EyeOff, MessageCircle, Loader2, Check } from 'lucide-react'
+        Heart, Star, X, Gauge, Globe, MessageCircle, Loader2, Check } from 'lucide-react'
 import ShadowingEvaluator from '../components/ShadowingEvaluator'
 import { recordWatch } from '../utils/watchedHistory'
 import { mergeAdjacentDuplicateSubtitles, findActiveSubtitleIndex } from '../utils/subtitles'
@@ -79,8 +79,15 @@ export default function VideoDetail() {
   const [sidebarTab, setSidebarTab] = useState('transcript')
   const [wordPopup, setWordPopup] = useState(null)
   const [showExport, setShowExport] = useState(false)
-  const [isWordCardOpen, setIsWordCardOpen] = useState(false)
-  const [wordCardTab, setWordCardTab] = useState('words')
+  // 深链 ?card=1&word=…&type=… 的初始状态直接从 URL 读取，避免在 effect 中同步 setState
+  const initialCardParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search)
+  const [isWordCardOpen, setIsWordCardOpen] = useState(() => initialCardParams?.get('card') === '1')
+  const [wordCardTab, setWordCardTab] = useState(() => {
+    const t = initialCardParams?.get('type')
+    if (t === 'phrase') return 'phrases'
+    if (t === 'core_phrase') return 'expressions'
+    return 'words'
+  })
   const [wordcard, setWordcard] = useState(null) // 落盘的 /data/videos/<dir>/wordcard.json（可选增强）
   const [blindRevealedIds, setBlindRevealedIds] = useState(new Set())
 
@@ -149,11 +156,6 @@ export default function VideoDetail() {
     if (params.get('card') !== '1') return
     deepLinkDoneRef.current = true
     const word = params.get('word') || ''
-    const type = params.get('type')
-    setIsWordCardOpen(true)
-    if (type === 'phrase') setWordCardTab('phrases')
-    else if (type === 'core_phrase') setWordCardTab('expressions')
-    else setWordCardTab('words')
     let tries = 0
     const timer = window.setInterval(() => {
       tries += 1
@@ -236,6 +238,7 @@ export default function VideoDetail() {
     setIsTranslateCorrect(null)
   }, [])
 
+  /* eslint-disable react-hooks/set-state-in-effect -- 切换句子时同步重置练习面板 */
   useEffect(() => {
     if (!video || !video.subtitles) return
     const sub = video.subtitles[Math.max(0, activeSubIndex)]
@@ -243,6 +246,7 @@ export default function VideoDetail() {
     setupClozeMode(sub)
     setupTranslateMode(sub)
   }, [activeSubIndex, video, setupClozeMode, setupTranslateMode])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── 学习状态埋点：练习过即记录（不要求答对/评测成功）──
   const recordPractice = useCallback((task, index) => {
@@ -310,11 +314,13 @@ export default function VideoDetail() {
 
   // ── Active subtitle tracking ──
   // 有匹配字幕时更新；落在时间间隙（无匹配）时保留上一条，避免高亮消失与跟随跳变
+  /* eslint-disable react-hooks/set-state-in-effect -- 跟随播放时间同步高亮句（媒体事件源） */
   useEffect(() => {
     if (!video || !video.subtitles) return
     const idx = findActiveSubtitleIndex(video.subtitles, currentTime)
     if (idx >= 0) setActiveSubIndex(idx)
   }, [currentTime, video])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Auto-scroll to active subtitle (desktop) — 温和跟随：仅当当前句滚出可视区时，
   // 滚动到字幕区顶部（留 8px）。用容器 scrollTo（而非 scrollIntoView），
@@ -352,8 +358,10 @@ export default function VideoDetail() {
   }, [activeSubIndex, mobileTab, playing])
 
   // ── Loop ──
-  const [loopStart, setLoopStart] = useState(null); const [loopEnd, setLoopEnd] = useState(null)
-  useEffect(() => { if (!video || activeSubIndex < 0) return; if (loopMode !== 'off') { const sub = video.subtitles[activeSubIndex]; if (sub) { setLoopStart(sub.startTime); setLoopEnd(sub.endTime) } } }, [activeSubIndex, loopMode, video])
+  // loop 边界由当前句 + loopMode 派生，避免在 effect 中 setState
+  const loopSub = loopMode !== 'off' && activeSubIndex >= 0 ? video?.subtitles?.[activeSubIndex] : null
+  const loopStart = loopSub ? loopSub.startTime : null
+  const loopEnd = loopSub ? loopSub.endTime : null
 
   // ── Video controls ──
   const handleTimeUpdate = () => {
@@ -459,7 +467,6 @@ export default function VideoDetail() {
   }
   const goPrevSentence = () => { navigateToSubtitle(activeSubIndex - 1) }
   const goNextSentence = () => { navigateToSubtitle(activeSubIndex + 1) }
-  const cycleLoop = () => { const m = ['off', 'sentence', 'all']; const n = m[(m.indexOf(loopMode) + 1) % 3]; setLoopMode(n); setIsLooping(n !== 'off'); const vid = videoRef.current; if (vid) vid.loop = n === 'all'; if (n !== 'sentence') { setLoopStart(null); setLoopEnd(null) }; setShowLoopPicker(false) }
   useEffect(() => { const vid = videoRef.current; if (!vid) return; vid.volume = muted ? 0 : volume; vid.playbackRate = playbackRate }, [volume, muted, playbackRate])
 
   // ── Vocabulary（词卡 → 生词本）──

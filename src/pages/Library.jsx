@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, Clock, ChevronDown, X, Play } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { loadSummary } from '../utils/practiceRecords'
 import { computeVideoProgress, hasAnyPractice, getLearningStatus } from '../utils/learningStatus'
 

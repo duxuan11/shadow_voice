@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-
-const AuthContext = createContext(null)
+import { useState, useEffect, useCallback } from 'react'
+import { AuthContext } from './auth-context'
 
 const API_BASE = '/api'
 
@@ -14,18 +13,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('shadow_voice_token'))
   const [isGuest, setIsGuest] = useState(() => sessionStorage.getItem('shadow_voice_guest') === 'true')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !isGuest && !!token)
 
   // Verify token on mount
   useEffect(() => {
-    if (isGuest) {
-      setLoading(false)
-      return
-    }
-    if (!token) {
-      setLoading(false)
-      return
-    }
+    if (isGuest || !token) return
     fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -128,10 +120,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }

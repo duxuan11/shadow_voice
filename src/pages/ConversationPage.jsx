@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Mic, Keyboard, Send, Sparkles, Volume2, VolumeX, Clapperboard, SkipBack, SkipForward, X } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { createSpeechInput } from '../utils/recallSpeech'
 import { createAsrSpeechInput } from '../utils/aliyunAsr'
 import { createSpeaker } from '../utils/tts'

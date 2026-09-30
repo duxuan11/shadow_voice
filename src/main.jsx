@@ -1,7 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 import App from './App'
 import Library from './pages/Library'
 import VideoDetail from './pages/VideoDetail'
@@ -14,27 +15,6 @@ import VocabPracticePage from './pages/VocabPracticePage'
 import Login from './pages/Login'
 import ConversationPage from './pages/ConversationPage'
 import './index.css'
-
-// Route guard: redirect to /login if not authenticated AND not guest
-function ProtectedRoute({ children }) {
-  const { user, isGuest, loading } = useAuth()
-  const location = useLocation()
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner" />
-        <p>加载中...</p>
-      </div>
-    )
-  }
-
-  if (!user && !isGuest) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
-
-  return children
-}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

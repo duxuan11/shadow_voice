@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RotateCcw, EyeOff, Eye, ChevronLeft, ChevronRight, Volume2, Send, SkipForward, Headphones } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { mergeAdjacentDuplicateSubtitles } from '../utils/subtitles'
 import { checkSpelling, isAllCorrect } from '../utils/spellCheck'
 

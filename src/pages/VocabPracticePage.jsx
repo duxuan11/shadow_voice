@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Headphones, Eye, EyeOff, Send, ChevronRight, ChevronLeft, RotateCcw, Trash2, RefreshCw, HelpCircle, X,
 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { createSpeaker } from '../utils/tts'
 import { checkSpelling, isAllCorrect } from '../utils/spellCheck'
 import { normalizeVocabKey } from '../utils/vocabulary'
