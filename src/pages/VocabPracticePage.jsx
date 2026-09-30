@@ -5,8 +5,9 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { createSpeaker } from '../utils/tts'
-import { checkSpelling, isAllCorrect } from '../utils/spellCheck'
 import { normalizeVocabKey } from '../utils/vocabulary'
+import SpellSlots from '../components/SpellSlots'
+import { splitToSlots, compareSlots, joinSlots, slotsAllCorrect } from '../utils/spellSlots'
 import {
   PRACTICE_TYPE_FILTERS,
   PRACTICE_TYPE_LABELS,
@@ -31,8 +32,8 @@ export default function VocabPracticePage() {
   const [phase, setPhase] = useState('setup') // setup | practice | finished
   const [queue, setQueue] = useState([])
   const [index, setIndex] = useState(0)
-  const [userInput, setUserInput] = useState('')
-  const [result, setResult] = useState(null) // { results, correct }
+  const [slotValues, setSlotValues] = useState([])
+  const [result, setResult] = useState(null) // { statuses, correct }
   const [revealed, setRevealed] = useState(false)
   const [showChinese, setShowChinese] = useState(false)
   const [round, setRound] = useState({ attempted: 0, correct: 0 })
@@ -42,7 +43,6 @@ export default function VocabPracticePage() {
   const [helpOpen, setHelpOpen] = useState(false)
 
   const attemptedRef = useRef(new Set())
-  const inputRef = useRef(null)
   const historyRef = useRef(new Map())
   const comboRef = useRef(0)
   const comboHideRef = useRef(null)
@@ -50,6 +50,7 @@ export default function VocabPracticePage() {
 
   const current = queue[index] || null
   const currentKey = current ? (current.word || normalizeVocabKey(current.content)) : ''
+  const expectedWords = useMemo(() => splitToSlots(current?.content || ''), [current])
   const deepWord = searchParams.get('word') || ''
   // 页面 phase → resolveShortcut 的快捷键阶段（practice 下再分答题/对照）
   const shortcutPhase = phase === 'practice'
@@ -85,7 +86,7 @@ export default function VocabPracticePage() {
     setComboVisible(false)
     setQueue(items)
     setIndex(0)
-    setUserInput('')
+    setSlotValues([])
     setResult(null)
     setRevealed(false)
     setShowChinese(false)
@@ -100,13 +101,13 @@ export default function VocabPracticePage() {
 
   function snapshotCurrent() {
     if (!current) return
-    historyRef.current.set(currentKey, { userInput, result, revealed })
+    historyRef.current.set(currentKey, { slotValues, result, revealed })
   }
 
   function restoreFor(entry) {
     const key = entry ? (entry.word || normalizeVocabKey(entry.content)) : ''
     const snap = key ? historyRef.current.get(key) : null
-    setUserInput(snap?.userInput ?? '')
+    setSlotValues(snap?.slotValues ?? [])
     setResult(snap?.result ?? null)
     setRevealed(snap?.revealed ?? false)
   }
@@ -135,11 +136,6 @@ export default function VocabPracticePage() {
     speaker.speak(current.content)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, index, queue])
-
-  // 出题自动聚焦
-  useEffect(() => {
-    if (phase === 'practice' && !result && !revealed && inputRef.current) inputRef.current.focus()
-  }, [phase, index, result, revealed])
 
   // 全局快捷键：单一入口，交给纯函数 resolveShortcut 决定动作
   useEffect(() => {
@@ -182,11 +178,10 @@ export default function VocabPracticePage() {
 
   async function submit() {
     if (!current) return
-    const trimmed = userInput.trim()
-    if (!trimmed) return
-    const results = checkSpelling(trimmed, current.content)
-    const correct = isAllCorrect(results)
-    setResult({ results, correct })
+    if (!joinSlots(slotValues)) return
+    const statuses = compareSlots(slotValues, expectedWords)
+    const correct = slotsAllCorrect(statuses)
+    setResult({ statuses, correct })
     // 每道题仅首次提交计入统计
     if (attemptedRef.current.has(currentKey)) return
     attemptedRef.current.add(currentKey)
@@ -211,7 +206,7 @@ export default function VocabPracticePage() {
   }
 
   function retry() {
-    setUserInput('')
+    setSlotValues(Array.from({ length: expectedWords.length }, () => ''))
     setResult(null)
     setRevealed(false)
   }
@@ -235,7 +230,7 @@ export default function VocabPracticePage() {
     try { await authFetch(`/vocab/${encodeURIComponent(key)}`, { method: 'DELETE' }) } catch { /* ignore */ }
     const nextQueue = queue.filter(v => (v.word || normalizeVocabKey(v.content)) !== key)
     setVocabulary(prev => prev.filter(v => (v.word || normalizeVocabKey(v.content)) !== key))
-    setUserInput('')
+    setSlotValues([])
     setResult(null)
     setRevealed(false)
     if (nextQueue.length === 0 || index >= nextQueue.length) {
@@ -402,24 +397,23 @@ export default function VocabPracticePage() {
               {current.phonetic && <span className="dictation-time">{current.phonetic}</span>}
             </div>
 
+            <SpellSlots
+              key={currentKey}
+              expectedWords={expectedWords}
+              value={slotValues}
+              onChange={setSlotValues}
+              onSubmit={submit}
+              disabled={!!result || revealed}
+              statuses={result?.statuses ?? null}
+              revealed={revealed && !result}
+            />
+
             {!result && !revealed && (
               <div className="dictation-input-area">
-                <textarea
-                  ref={inputRef}
-                  value={userInput}
-                  onChange={e => setUserInput(e.target.value)}
-                  className="dictation-input"
-                  placeholder="输入你听到的英文…"
-                  rows={2}
-                  spellCheck={false}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                />
                 <div className="dictation-action-buttons">
                   <button
                     onClick={submit}
-                    disabled={!userInput.trim()}
+                    disabled={!joinSlots(slotValues)}
                     className="dictation-action-btn submit-btn"
                     data-tip="提交 (Enter)"
                   >
@@ -436,14 +430,9 @@ export default function VocabPracticePage() {
                   </button>
                 </div>
                 <div className="vocab-keyhints">
-                  <span className="vocab-keycap">Enter</span>
-                  <span className="vocab-keyhint-label">提交</span>
-                  <span className="vocab-keycap">Shift</span>
-                  <span className="vocab-keycap">Enter</span>
-                  <span className="vocab-keyhint-label">换行</span>
-                  <span className="vocab-keycap">Ctrl</span>
-                  <span className="vocab-keycap">Space</span>
-                  <span className="vocab-keyhint-label">重听</span>
+                  <span className="vocab-keycap">Space</span><span className="vocab-keyhint-label">下一词</span>
+                  <span className="vocab-keycap">Enter</span><span className="vocab-keyhint-label">提交</span>
+                  <span className="vocab-keycap">Tab</span><span className="vocab-keyhint-label">显示答案</span>
                 </div>
               </div>
             )}
@@ -451,77 +440,27 @@ export default function VocabPracticePage() {
             {(result || revealed) && (
               <div className="dictation-review">
                 {result && (
-                  <div className="spell-result">
-                    {result.results.map((r, i) => {
-                      if (r.type === 'correct') {
-                        return <span key={i} className="spell-word spell-right">{r.word}</span>
-                      }
-                      if (r.type === 'wrong') {
-                        return (
-                          <span key={i} className="spell-word-group spell-wrong">
-                            <span className="spell-user-word">{r.user}</span>
-                            <span className="spell-correct-word">{r.expected}</span>
-                          </span>
-                        )
-                      }
-                      if (r.type === 'missing') {
-                        return (
-                          <span key={i} className="spell-word-group spell-missing">
-                            <span className="spell-correct-word">{r.expected}</span>
-                          </span>
-                        )
-                      }
-                      if (r.type === 'extra') {
-                        return (
-                          <span key={i} className="spell-word-group spell-extra">
-                            <span className="spell-user-word">{r.user}</span>
-                          </span>
-                        )
-                      }
-                      return null
-                    })}
-                  </div>
-                )}
-
-                <div
-                  className="spell-answer vocab-hoverhint"
-                  data-hint={[current.phonetic, current.translation].filter(Boolean).join(' · ') || '暂无释义'}
-                >
-                  <span className="answer-label">正确答案：</span>
-                  <span className="answer-text">{current.content}</span>
-                </div>
-
-                {result && (
                   <p className={`vocab-practice-verdict ${result.correct ? 'is-correct' : 'is-wrong'}`}>
-                    {result.correct ? '✅ 完全正确' : '❌ 有出入，看看上面标红 / 标黄的部分'}
+                    {result.correct ? '✅ 完全正确' : '❌ 有出入，看槽位上的提示'}
                   </p>
                 )}
 
                 <div className="dictation-nav">
-                  <button
-                    onClick={prev}
-                    disabled={index === 0}
-                    className="dictation-action-btn"
-                    data-tip="上一题 (←)"
-                  >
-                    <ChevronLeft size={16} />
-                    <span>上一题</span>
+                  <button onClick={prev} disabled={index === 0} className="dictation-action-btn" data-tip="上一题 (←)">
+                    <ChevronLeft size={16} /><span>上一题</span>
                   </button>
                   <button onClick={retry} className="dictation-action-btn" data-tip="再练一次 (3)">
-                    <RotateCcw size={16} />
-                    <span>再练一次</span>
+                    <RotateCcw size={16} /><span>再练一次</span>
                   </button>
                   <button
                     onClick={() => speaker.speak(current.content)}
                     className="dictation-action-btn replay-btn"
                     data-tip="再听一次 (1)"
                   >
-                    <Headphones size={16} />
-                    <span>再听一次</span>
+                    <Headphones size={16} /><span>再听一次</span>
                   </button>
                   <button onClick={removeCurrent} className="dictation-action-btn skip-btn" data-tip="移除生词本">
-                    <Trash2 size={16} />
-                    <span>移除生词本</span>
+                    <Trash2 size={16} /><span>移除生词本</span>
                   </button>
                   <button onClick={next} className="dictation-action-btn submit-btn" data-tip="下一题 (4 / Enter)">
                     <span>{index < queue.length - 1 ? '下一题' : '完成'}</span>
