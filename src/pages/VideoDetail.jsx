@@ -522,7 +522,7 @@ export default function VideoDetail() {
   }, [authFetch, isGuest, notify])
 
   // 字幕点词/弹窗收藏：沿用原有入口，补充音标与释义
-  const pushToVocab = (word) => {
+  const pushToVocab = (word, sentenceCn = '') => {
     const content = String(word ?? '').trim()
     const key = normalizeVocabKey(content)
     if (!content || !key) return
@@ -530,6 +530,7 @@ export default function VideoDetail() {
       content,
       word: key,
       translation: SYNONYMS[key]?.cn || '',
+      contextCn: String(sentenceCn ?? '').trim(),
       type: 'word',
       phonetic: getPhonetic(content),
       videoId: id,
@@ -569,14 +570,14 @@ export default function VideoDetail() {
     )
   }
 
-  const handleWordClick = (word, e) => {
+  const handleWordClick = (word, e, sentenceCn = '') => {
     e.stopPropagation()
     const cw = word.replace(/[^a-zA-Z']/g, '').toLowerCase(); if (cw.length < 2) return
     const sd = SYNONYMS[cw]; const r = e.target.getBoundingClientRect()
     const x = Math.min(r.left, window.innerWidth - 210)
     const y = Math.min(r.bottom + 4, window.innerHeight - 180)
-    setWordPopup({ word: cw, synonyms: sd?.synonyms || [], cn: sd?.cn || '', x, y, isMobile: window.innerWidth < 768 })
-    pushToVocab(cw)
+    setWordPopup({ word: cw, synonyms: sd?.synonyms || [], cn: sd?.cn || sentenceCn || '', x, y, isMobile: window.innerWidth < 768 })
+    pushToVocab(cw, sentenceCn)
   }
 
   useEffect(() => { if (!wordPopup || wordPopup.isMobile) return; const t = setTimeout(() => setWordPopup(null), 4000); const c = () => setWordPopup(null); document.addEventListener('click', c, { once: true }); return () => { clearTimeout(t); document.removeEventListener('click', c) } }, [wordPopup])
@@ -680,7 +681,7 @@ export default function VideoDetail() {
         {(subtitleMode === 'bilingual' || subtitleMode === 'english' || subtitleMode === 'blind') && (
           <p className={`${isMobileView ? 'text-[15px]' : 'text-[15px] md:text-base'} leading-relaxed font-['Roboto',sans-serif] tracking-wide ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-800 font-bold'}`}>
             {isMobileView ? sub.textEn : sub.textEn.split(' ').map((w, wi) => (
-              <span key={wi} className="cursor-pointer rounded-sm hover:text-indigo-600 hover:bg-indigo-50 px-0.5" onClick={e => handleWordClick(w, e)}>{w} </span>
+              <span key={wi} className="cursor-pointer rounded-sm hover:text-indigo-600 hover:bg-indigo-50 px-0.5" onClick={e => handleWordClick(w, e, sub.textCn)}>{w} </span>
             ))}
           </p>
         )}
@@ -1086,7 +1087,7 @@ export default function VideoDetail() {
                   <button onClick={() => speakWord(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer" title="发音">
                     <Volume2 className="h-5 w-5" />
                   </button>
-                  <button onClick={() => pushToVocab(wordPopup.word)} className="p-1.5 hover:bg-white/20 rounded-lg transition cursor-pointer" title={vocabKeysSet.has(wordPopup.word) ? '已收藏' : '收藏单词'}>
+                  <button onClick={() => pushToVocab(wordPopup.word, wordPopup.cn)} className="p-1.5 hover:bg-white/20 rounded-lg transition cursor-pointer" title={vocabKeysSet.has(wordPopup.word) ? '已收藏' : '收藏单词'}>
                     <Heart className={`h-5 w-5 ${vocabKeysSet.has(wordPopup.word) ? 'text-red-300 fill-red-300' : 'text-white'}`} />
                   </button>
                   <button onClick={() => setWordPopup(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition text-white cursor-pointer">
@@ -1103,7 +1104,7 @@ export default function VideoDetail() {
                 )}
                 <button
                   type="button"
-                  onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word)}
+                  onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word, wordPopup.cn)}
                   className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg w-full justify-center cursor-pointer transition-colors ${vocabKeysSet.has(wordPopup.word) ? 'text-amber-600 bg-amber-50' : 'text-indigo-600 bg-indigo-50'}`}>
                   {vocabKeysSet.has(wordPopup.word)
                     ? <><Check className="h-3.5 w-3.5" /> 已加入生词本</>
@@ -1450,7 +1451,7 @@ export default function VideoDetail() {
             )}
             <button
               type="button"
-              onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word)}
+              onClick={() => vocabKeysSet.has(wordPopup.word) ? removeFromVocab(wordPopup.word) : pushToVocab(wordPopup.word, wordPopup.cn)}
               className={`flex items-center gap-1.5 text-[10px] px-3 py-1.5 rounded-lg w-full justify-center cursor-pointer transition-colors ${vocabKeysSet.has(wordPopup.word) ? 'text-amber-400 bg-amber-500/10' : 'text-indigo-300 bg-indigo-500/15'}`}>
               {vocabKeysSet.has(wordPopup.word)
                 ? <><Check className="h-3 w-3" /> 已加入生词本</>
