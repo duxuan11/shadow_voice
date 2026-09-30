@@ -6,6 +6,7 @@ export const SHORTCUT_GROUPS = [
     title: '答题中',
     items: [
       { keys: ['Enter'], label: '提交' },
+      { keys: ['Tab'], label: '显示答案' },
       { keys: ['Shift', 'Enter'], label: '换行' },
       { keys: ['Ctrl/⌘', 'Space'], label: '再听一次' },
       { keys: ['Alt', 'R'], label: '再听一次' },
@@ -19,7 +20,6 @@ export const SHORTCUT_GROUPS = [
       { keys: ['Enter'], label: '下一题' },
       { keys: ['Space'], label: '下一题' },
       { keys: ['1'], label: '再听一次' },
-      { keys: ['2'], label: '显示答案' },
       { keys: ['3'], label: '再练一次' },
       { keys: ['4'], label: '下一题' },
       { keys: ['←'], label: '上一题' },
@@ -67,6 +67,7 @@ export function resolveShortcut({
         if (shiftKey || mod || altKey) return null
         return 'submit'
       }
+      if (key === 'Tab' && !shiftKey) return 'reveal'
       if (mod && key === ' ') return 'replay'
       if (altKey && (key === 'r' || key === 'R')) return 'replay'
       if (mod && (key === 'h' || key === 'H')) return 'toggleChinese'

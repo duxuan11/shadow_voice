@@ -145,7 +145,11 @@ export default function VocabPracticePage() {
   useEffect(() => {
     const handler = (e) => {
       const el = document.activeElement
-      const inputFocused = !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable)
+      const tag = el?.tagName
+      const isButton = !!el && typeof el.closest === 'function' && !!el.closest('button')
+      // 按钮聚焦时把 Enter/Space 交回按钮原生激活，避免顶掉点击
+      if (isButton && (e.key === 'Enter' || e.key === ' ')) return
+      const inputFocused = !isButton && !!el && (tag === 'TEXTAREA' || tag === 'INPUT' || el.isContentEditable)
       const action = resolveShortcut({
         key: e.key,
         ctrlKey: e.ctrlKey,
@@ -428,7 +432,7 @@ export default function VocabPracticePage() {
                     <Headphones size={16} />
                     <span>再听一次</span>
                   </button>
-                  <button onClick={() => setRevealed(true)} className="dictation-action-btn" data-tip="显示答案 (2)">
+                  <button onClick={() => setRevealed(true)} className="dictation-action-btn" data-tip="显示答案 (Tab)">
                     <Eye size={16} />
                     <span>显示答案</span>
                   </button>

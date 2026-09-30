@@ -17,6 +17,8 @@ test('答题中（输入框聚焦）：只处理不打字冲突的键', () => {
   assert.equal(t({ key: 'Enter', inputFocused: true }), 'submit')
   assert.equal(t({ key: 'Enter', shiftKey: true, inputFocused: true }), null)
   assert.equal(t({ key: 'Enter', ctrlKey: true, inputFocused: true }), null)
+  assert.equal(t({ key: 'Tab', inputFocused: true }), 'reveal')
+  assert.equal(t({ key: 'Tab', shiftKey: true, inputFocused: true }), null)
   assert.equal(t({ key: ' ', ctrlKey: true, inputFocused: true }), 'replay')
   assert.equal(t({ key: 'R', altKey: true, inputFocused: true }), 'replay')
   assert.equal(t({ key: 'h', ctrlKey: true, inputFocused: true }), 'toggleChinese')
