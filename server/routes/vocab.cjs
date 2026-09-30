@@ -58,6 +58,9 @@ function toEntry(row) {
     translation: row.translation || '',
     type: row.type || 'word',
     phonetic: row.phonetic || '',
+    practice_count: row.practice_count || 0,
+    correct_count: row.correct_count || 0,
+    last_practiced_at: row.last_practiced_at || null,
     sources,
     // 旧字段保留，兼容 Profile 等既有调用方
     video_id: row.video_id || sources[0]?.videoId || null,
@@ -131,6 +134,34 @@ router.post('/', authMiddleware, async (req, res) => {
     res.json({ ok: true, added: true, entry })
   } catch {
     res.status(500).json({ error: '添加失败' })
+  }
+})
+
+// POST /api/vocab/practice — 记录一次听练结果（每道题仅首次提交由前端保证）
+// body: { word: string, correct: boolean }
+router.post('/practice', authMiddleware, async (req, res) => {
+  const body = req.body || {}
+  const key = normalizeKey(body.word)
+  if (!key) return res.status(400).json({ error: '单词/短语不能为空' })
+  if (typeof body.correct !== 'boolean') return res.status(400).json({ error: 'correct 必须为布尔值' })
+
+  await getDb()
+  try {
+    const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
+    if (!existing) return res.status(404).json({ error: '生词不存在' })
+
+    run(
+      `UPDATE vocabulary
+         SET practice_count = COALESCE(practice_count, 0) + 1,
+             correct_count = COALESCE(correct_count, 0) + ?,
+             last_practiced_at = datetime('now')
+       WHERE id = ?`,
+      [body.correct ? 1 : 0, existing.id]
+    )
+    const entry = toEntry(get('SELECT * FROM vocabulary WHERE id = ?', [existing.id]))
+    res.json({ ok: true, entry })
+  } catch {
+    res.status(500).json({ error: '记录失败' })
   }
 })
 

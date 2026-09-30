@@ -127,6 +127,14 @@ function initSchema() {
   // sources 无需回填，读取时由 video_id/video_title 兜底合成。
   db.run("UPDATE vocabulary SET content = word WHERE content IS NULL OR content = ''")
   db.run("UPDATE vocabulary SET type = 'word' WHERE type IS NULL OR type = ''")
+
+  // 听练统计：与生词条目同生命周期（移除生词 → 统计一并删除）。
+  ensureColumn('vocabulary', 'practice_count', 'INTEGER DEFAULT 0')
+  ensureColumn('vocabulary', 'correct_count', 'INTEGER DEFAULT 0')
+  ensureColumn('vocabulary', 'last_practiced_at', 'TEXT')
+  // 回填历史行（幂等）。
+  db.run('UPDATE vocabulary SET practice_count = 0 WHERE practice_count IS NULL')
+  db.run('UPDATE vocabulary SET correct_count = 0 WHERE correct_count IS NULL')
 }
 
 // sql.js 没有 ALTER TABLE 幂等语法 —— 检查列是否存在，缺失才补

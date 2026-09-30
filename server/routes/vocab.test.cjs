@@ -47,6 +47,13 @@ async function list(userId = USER_ID) {
   return { status: res.status, body: await res.json() }
 }
 
+async function practice(word, correct, userId = USER_ID) {
+  const res = await fetch(`${baseUrl}/api/vocab/practice`, {
+    method: 'POST', headers: authHeaders(userId), body: JSON.stringify({ word, correct }),
+  })
+  return { status: res.status, body: await res.json() }
+}
+
 test('游客访问 → 401', async () => {
   const res = await fetch(`${baseUrl}/api/vocab`)
   assert.equal(res.status, 401)
@@ -153,4 +160,54 @@ test('多用户隔离：互不可见', async () => {
   assert.ok(!body.vocabulary.some(v => v.word === 'privateword'))
   const other = await list(OTHER_USER)
   assert.equal(other.body.vocabulary.length, 1)
+})
+
+test('听练：首次正确 → practice_count=1 / correct_count=1 / last_practiced_at', async () => {
+  await add({ content: 'practice-ok', type: 'word', videoId: 'p1', videoTitle: 'P' })
+  const { status, body } = await practice('practice-ok', true)
+  assert.equal(status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.entry.practice_count, 1)
+  assert.equal(body.entry.correct_count, 1)
+  assert.ok(body.entry.last_practiced_at)
+})
+
+test('听练：累计正确与错误次数', async () => {
+  await add({ content: 'practice-count', type: 'word', videoId: 'p1', videoTitle: 'P' })
+  await practice('practice-count', true)
+  await practice('practice-count', true)
+  await practice('practice-count', false)
+  const { body } = await list()
+  const entry = body.vocabulary.find(v => v.word === 'practice count')
+  assert.equal(entry.practice_count, 3)
+  assert.equal(entry.correct_count, 2)
+})
+
+test('听练：未收录单词 → 404', async () => {
+  const { status } = await practice('not-in-book', true)
+  assert.equal(status, 404)
+})
+
+test('听练：correct 非布尔 → 400', async () => {
+  await add({ content: 'practice-bad', type: 'word', videoId: 'p1', videoTitle: 'P' })
+  const { status } = await practice('practice-bad', 'yes')
+  assert.equal(status, 400)
+})
+
+test('听练：游客 → 401', async () => {
+  const res = await fetch(`${baseUrl}/api/vocab/practice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ word: 'practice-ok', correct: true }),
+  })
+  assert.equal(res.status, 401)
+})
+
+test('听练：多用户隔离（只统计本人）', async () => {
+  // 'privateword' 在上方「多用户隔离」测试中已加入 OTHER_USER
+  await practice('privateword', true, OTHER_USER)
+  const mine = await list(USER_ID)
+  assert.ok(!mine.body.vocabulary.some(v => v.word === 'privateword'))
+  const other = await list(OTHER_USER)
+  assert.equal(other.body.vocabulary.find(v => v.word === 'privateword').practice_count, 1)
 })
