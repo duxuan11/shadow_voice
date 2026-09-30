@@ -4159,9 +4159,6 @@
 .vocab-practice-page .dictation-action-btn.toggle-cn-btn:hover {
   background: rgba(255, 255, 255, 0.12);
 }
-.vocab-practice-page .dictation-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
 
 /* Fix 3: 深色音频条中的白色重播胶囊 */
 .vocab-practice-page .dictation-replay-btn {
@@ -4174,4 +4171,15 @@
 .spell-slot:focus-visible {
   outline: 2px solid rgba(34, 211, 238, 0.7);
   outline-offset: 4px;
+}
+
+/* Fix 6: 完成页标题与 CTA 按钮在深色卡片上的配色 */
+.vocab-practice-page .dictation-finished h2 { color: #e8ecf8; }
+.vocab-practice-page .dictation-finished .action-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #dbe3fb;
+}
+.vocab-practice-page .dictation-finished .action-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
