@@ -15,9 +15,10 @@ describe('resolveDataDir', () => {
   })
 
   it('相对路径相对 root 解析（去掉首尾空白）', () => {
-    assert.equal(resolveDataDir('data', root), path.join(root, 'data'))
-    assert.equal(resolveDataDir('./my-data', root), path.join(root, 'my-data'))
-    assert.equal(resolveDataDir('  ./x  ', root), path.join(root, 'x'))
+    // 相对路径用 path.resolve 解析（实现同 path.resolve）；Windows 下与 path.join 结果不同
+    assert.equal(resolveDataDir('data', root), path.resolve(root, 'data'))
+    assert.equal(resolveDataDir('./my-data', root), path.resolve(root, 'my-data'))
+    assert.equal(resolveDataDir('  ./x  ', root), path.resolve(root, 'x'))
   })
 
   it('绝对路径原样返回', () => {
