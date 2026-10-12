@@ -53,6 +53,14 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
   2. **隧道工具**（如 cloudflared、frp、tailscale serve）：获得一个 HTTPS 域名，无需自签证书。
   3. **电脑/本机调试**：`http://localhost:3001` 本身就是安全上下文，可直接用电脑浏览器测试跟读评测。
 
+### 🎙️ 自由表达（看中文说英文）
+- **入口**：视频详情页点「💬 AI 对话」→ 选「🗣 自由表达 · 看中文说英文」（登录用户可用，游客引导登录）
+- **玩法**：看一句中文 → 麦克风说英文 → 点「解析」看 AI 逐句评分（语法/用词/搭配/地道）+ 更地道的说法 + 参考答案 + 低分提示；允许反复说（重录 / 重说）
+- **内容提前落盘**：`npm run speak-prompts` 预生成每条视频的练习句（字幕原句为主 + AI 少量场景扩展句，都带标准答案），运行时零提取 token
+- **语音**：阿里云 ASR（若配置）→ 浏览器 Web Speech → 打字输入兜底
+- **评分口径**：`en` 只是参考答案之一，凡是意思吻合、自然正确的表达都给高分；解析只在你点「解析」时调一次 AI
+- **记录**：已练句跨设备记录（与跟读/挖空/中译英同一套 practice 存储）
+
 ### 📊 学习记录
 - **观看历史**：最近看过的 50 个视频（登录用户存服务端，手机/电脑互通；游客仅存本机）
 - **生词本**：视频词卡里的单词 / 短语 / 核心短语都能收藏；同一内容跨视频去重为一条并保留多个来源视频，可按类型筛选、点击来源回到对应视频词卡、触屏可移除
@@ -132,6 +140,7 @@ npm run build
 | `/login` | 登录/注册 |
 | `/video/:id` | 视频播放 + 字幕学习 |
 | `/video/:id/dictation` | 听写模式 |
+| `/video/:id/speak` | 自由表达（看中文说英文） |
 | `/records` | 学习记录 |
 | `/vocab/practice` | 生词听练（支持 `?word=&type=` 单条成轮） |
 
@@ -195,7 +204,8 @@ shadow_voice/
 ├── download_missing.py          # 补下缺失视频
 ├── scripts/
 │   ├── build-wordcards.mjs      # AI 生成每条视频的 wordcard.json（npm run wordcards）
-│   └── build-phonetics.mjs      # 由 ipa-dict 生成 src/data/phonetics.js（npm run phonetics）
+│   ├── build-phonetics.mjs      # 由 ipa-dict 生成 src/data/phonetics.js（npm run phonetics）
+│   └── build-speak-prompts.mjs  # 生成每条视频的 speak-prompts.json（npm run speak-prompts）
 ├── vite.config.js               # Vite 配置（代理 + 数据服务插件）
 ├── package.json
 └── eslint.config.js
@@ -248,6 +258,7 @@ shadow_voice/
 | POST | `/api/tts/synthesize` | 文本转语音 | ✅ |
 | GET | `/api/asr/status` | 语音识别服务状态 | ✅ |
 | POST | `/api/asr/recognize` | 语音转文字（PCM） | ✅ |
+| POST | `/api/speak/review` | 自由表达单句 AI 评分 | ✅ |
 | GET | `/api/health` | 健康检查（校验数据库连通性） | ❌ |
 
 ---
@@ -262,6 +273,10 @@ shadow_voice/
   - `npm run wordcards -- --force` 全量重新生成（默认跳过已有的）
   - `npm run wordcards -- --video <id|目录名>` 只处理某条视频
   - `npm run wordcards -- --dry` 只调 AI 预览条数，不写文件
+- 生成/刷新自由表达练习句：`npm run speak-prompts`（无 AI key 也能生成纯字幕句；配 key 后额外生成 ≤5 条场景扩展句）
+  - `npm run speak-prompts -- --force` 全量重新生成（默认跳过已有的）
+  - `npm run speak-prompts -- --video <id|目录名>` 只处理某条视频
+  - `npm run speak-prompts -- --dry` 只打印，不写文件
 - 热更新期间 `/data/` 下的 JSON 文件变更会立即反映到页面
 
 ---

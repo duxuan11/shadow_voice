@@ -50,7 +50,14 @@ test('无记录 GET 返回空数组', async () => {
   const res = await fetch(`${baseUrl}/api/practice/v-empty`, { headers: authHeaders() })
   assert.equal(res.status, 200)
   const body = await res.json()
-  assert.deepEqual(body.data, { shadow: [], cloze: [], translate: [] })
+  assert.deepEqual(body.data, { shadow: [], cloze: [], translate: [], speak: [] })
+})
+
+test('speak 任务 POST 后 GET 可读', async () => {
+  await post('v-speak', { task: 'speak', index: 1 })
+  const res = await fetch(`${baseUrl}/api/practice/v-speak`, { headers: authHeaders() })
+  const body = await res.json()
+  assert.deepEqual(body.data.speak, [1])
 })
 
 test('POST 后 GET 可读', async () => {
@@ -79,7 +86,14 @@ test('summary 返回各视频三项计数', async () => {
   await post('v3', { task: 'translate', index: 4 })
   const res = await fetch(`${baseUrl}/api/practice/summary`, { headers: authHeaders() })
   const body = await res.json()
-  assert.deepEqual(body.summary.v3, { shadow: 2, cloze: 0, translate: 1 })
+  assert.deepEqual(body.summary.v3, { shadow: 2, cloze: 0, translate: 1, speak: 0 })
+})
+
+test('summary 含 speak 计数', async () => {
+  await post('v-speak-sum', { task: 'speak', index: 0 })
+  const res = await fetch(`${baseUrl}/api/practice/summary`, { headers: authHeaders() })
+  const body = await res.json()
+  assert.deepEqual(body.summary['v-speak-sum'], { shadow: 0, cloze: 0, translate: 0, speak: 1 })
 })
 
 test('非法 task → 400', async () => {
@@ -105,5 +119,5 @@ test('损坏 JSON 容错为空', async () => {
   run('INSERT INTO practice_records (user_id, video_id, data) VALUES (?, ?, ?)', [USER_ID, 'v-corrupt', '{bad json'])
   const res = await fetch(`${baseUrl}/api/practice/v-corrupt`, { headers: authHeaders() })
   const body = await res.json()
-  assert.deepEqual(body.data, { shadow: [], cloze: [], translate: [] })
+  assert.deepEqual(body.data, { shadow: [], cloze: [], translate: [], speak: [] })
 })

@@ -3,9 +3,9 @@ const router = express.Router()
 const { authMiddleware } = require('../auth.cjs')
 const { getDb, run, get, all } = require('../db.cjs')
 
-const TASKS = ['shadow', 'cloze', 'translate']
+const TASKS = ['shadow', 'cloze', 'translate', 'speak']
 
-const emptyData = () => ({ shadow: [], cloze: [], translate: [] })
+const emptyData = () => ({ shadow: [], cloze: [], translate: [], speak: [] })
 
 // 解析 data JSON，过滤非法项并按任务去重；损坏时返回空结构
 function parseData(raw) {
@@ -36,6 +36,7 @@ router.get('/summary', authMiddleware, async (req, res) => {
         shadow: data.shadow.length,
         cloze: data.cloze.length,
         translate: data.translate.length,
+        speak: data.speak.length,
       }
     }
     res.json({ summary })

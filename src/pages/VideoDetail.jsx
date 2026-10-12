@@ -79,6 +79,7 @@ export default function VideoDetail() {
   const [sidebarTab, setSidebarTab] = useState('transcript')
   const [wordPopup, setWordPopup] = useState(null)
   const [showExport, setShowExport] = useState(false)
+  const [showSpeakMenu, setShowSpeakMenu] = useState(false)
   // 深链 ?card=1&word=…&type=… 的初始状态直接从 URL 读取，避免在 effect 中同步 setState
   const initialCardParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search)
   const [isWordCardOpen, setIsWordCardOpen] = useState(() => initialCardParams?.get('card') === '1')
@@ -655,6 +656,14 @@ export default function VideoDetail() {
     return () => document.removeEventListener('click', close)
   }, [showSpeedPicker, showLoopPicker])
 
+  // Close speak menu on outside click
+  useEffect(() => {
+    if (!showSpeakMenu) return
+    const close = () => setShowSpeakMenu(false)
+    document.addEventListener('click', close, { once: true })
+    return () => document.removeEventListener('click', close)
+  }, [showSpeakMenu])
+
   // ── Loading / Error ──
   if (loading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="flex flex-col items-center gap-4"><div className="w-10 h-10 border-[3px] border-slate-200 border-t-indigo-600 rounded-full animate-spin" /><p className="text-sm text-slate-500 font-medium">加载中...</p></div></div>
   if (error) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="flex flex-col items-center gap-4"><p className="text-rose-500 font-semibold">{error}</p><button onClick={() => navigate('/')} className="px-5 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all cursor-pointer">返回首页</button></div></div>
@@ -794,13 +803,23 @@ export default function VideoDetail() {
               {video.level}
             </span>
           )}
-          <button
-            onClick={() => (isGuest ? navigate('/login', { state: { from: `/video/${id}/conversation` } }) : navigate(`/video/${id}/conversation`))}
-            className="flex items-center justify-center w-9 h-9 bg-indigo-600 text-white rounded-lg shrink-0 active:scale-95 ml-2"
-            title="AI 对话"
-          >
-            <MessageCircle className="h-4.5 w-4.5" />
-          </button>
+          <div className="relative shrink-0 ml-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/conversation` } }); else setShowSpeakMenu(v => !v) }}
+              className="flex items-center justify-center w-9 h-9 bg-indigo-600 text-white rounded-lg active:scale-95"
+              title="AI 对话"
+            >
+              <MessageCircle className="h-4.5 w-4.5" />
+            </button>
+            {showSpeakMenu && (
+              <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 min-w-[190px]" onClick={e => e.stopPropagation()}>
+                <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/conversation`) }}
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
+                <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Mobile Video Player ── */}
@@ -1144,12 +1163,22 @@ export default function VideoDetail() {
                 className="flex items-center space-x-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs">
                 <Download className="h-3.5 w-3.5" /><span>导出</span>
               </button>
-              <button
-                onClick={() => (isGuest ? navigate('/login', { state: { from: `/video/${id}/conversation` } }) : navigate(`/video/${id}/conversation`))}
-                className="flex items-center space-x-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                <MessageCircle className="h-3.5 w-3.5" /><span>💬 AI 对话</span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/conversation` } }); else setShowSpeakMenu(v => !v) }}
+                  className="flex items-center space-x-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /><span>💬 AI 对话</span>
+                </button>
+                {showSpeakMenu && (
+                  <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 min-w-[190px]" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/conversation`) }}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
+                    <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
