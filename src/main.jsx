@@ -14,6 +14,7 @@ import Profile from './pages/Profile'
 import VocabPracticePage from './pages/VocabPracticePage'
 import Login from './pages/Login'
 import ConversationPage from './pages/ConversationPage'
+import SpeakPracticePage from './pages/SpeakPracticePage'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="video/:id/shadowing" element={<ShadowingPage />} />
             <Route path="video/:id/cloze" element={<ClozePage />} />
             <Route path="video/:id/conversation" element={<ConversationPage />} />
+            <Route path="video/:id/speak" element={<SpeakPracticePage />} />
             <Route path="records" element={<LearningRecords />} />
             <Route path="profile" element={<Profile />} />
             <Route path="vocab/practice" element={<VocabPracticePage />} />

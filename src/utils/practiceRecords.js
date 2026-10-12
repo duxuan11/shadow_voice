@@ -1,11 +1,11 @@
 // 练习记录读写：登录用户走 /api/practice，游客存 localStorage。
 // 记录粒度是"每句一个标志"，只用于算学习状态，不存录音/评分。
 
-export const PRACTICE_TASKS = ['shadow', 'cloze', 'translate']
+export const PRACTICE_TASKS = ['shadow', 'cloze', 'translate', 'speak']
 const STORAGE_KEY = 'shadow_voice_practice'
 
 export function emptyPracticeData() {
-  return { shadow: [], cloze: [], translate: [] }
+  return { shadow: [], cloze: [], translate: [], speak: [] }
 }
 
 // 纯函数：把 index 并入 task 数组，去重；非法参数原样返回

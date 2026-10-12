@@ -48,7 +48,11 @@ describe('addIndex', () => {
     assert.equal(addIndex(data, 'shadow', '2'), data)
   })
   it('任务与常量一致', () => {
-    assert.deepEqual(PRACTICE_TASKS, ['shadow', 'cloze', 'translate'])
+    assert.deepEqual(PRACTICE_TASKS, ['shadow', 'cloze', 'translate', 'speak'])
+  })
+  it('speak 任务可记录', () => {
+    assert.deepEqual(emptyPracticeData(), { shadow: [], cloze: [], translate: [], speak: [] })
+    assert.deepEqual(addIndex(emptyPracticeData(), 'speak', 2).speak, [2])
   })
 })
 
@@ -91,7 +95,7 @@ describe('登录用户网络路径', () => {
   it('loadOne 请求 /practice/:id 并合并到空结构', async () => {
     const authFetch = makeAuthFetch(okJson({ data: { shadow: [1, 2] } }))
     const data = await loadOne(authFetch, false, 'v1')
-    assert.deepEqual(data, { shadow: [1, 2], cloze: [], translate: [] })
+    assert.deepEqual(data, { shadow: [1, 2], cloze: [], translate: [], speak: [] })
     assert.equal(authFetch.calls[0].path, '/practice/v1')
   })
   it('loadOne 响应非 ok 时返回空结构', async () => {
@@ -132,7 +136,7 @@ describe('游客本地存储', () => {
   })
   it('无记录返回空结构', () => {
     resetLocalPractice()
-    assert.deepEqual(loadLocalOne('nope'), { shadow: [], cloze: [], translate: [] })
+    assert.deepEqual(loadLocalOne('nope'), { shadow: [], cloze: [], translate: [], speak: [] })
     assert.deepEqual(loadLocalSummary(), {})
   })
 })
