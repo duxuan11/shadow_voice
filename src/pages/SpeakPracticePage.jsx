@@ -4,7 +4,7 @@ import { ArrowLeft, Mic, Square, ChevronLeft, ChevronRight, RotateCcw, Sparkles,
 import { useAuth } from '../context/auth-context'
 import { createAsrSpeechInput } from '../utils/aliyunAsr'
 import { createSpeechInput } from '../utils/recallSpeech'
-import { filterSubtitlesToPrompts } from '../utils/speakPrompts'
+import { filterSubtitlesToPrompts, subtitleCapFor, promptBadges } from '../utils/speakPrompts'
 import { loadOne, mark, firstUnpracticedIndex } from '../utils/practiceRecords'
 
 const ISSUE_TYPE_LABELS = {
@@ -77,7 +77,7 @@ export default function SpeakPracticePage() {
           try {
             const r = await fetch(`/data/videos/${found.episode_dir}/subtitles.json`)
             const subs = r.ok ? await r.json() : []
-            prompts = filterSubtitlesToPrompts(subs)
+            prompts = filterSubtitlesToPrompts(subs, { maxPrompts: subtitleCapFor(subs.length) })
           } catch { prompts = [] }
         }
         if (!cancelled) setPrompts(prompts)
@@ -236,6 +236,19 @@ export default function SpeakPracticePage() {
           {/* 中文句子 */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xs px-6 py-8 text-center">
             <p className="text-slate-400 text-xs font-bold mb-2 tracking-wider">看中文，说英文</p>
+            {promptBadges(prompt).length > 0 && (
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                {promptBadges(prompt).map(b => (
+                  <span key={b.kind} className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                    b.kind === 'extension'
+                      ? 'bg-violet-50 text-violet-600 border-violet-100'
+                      : b.text === '简单' ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                      : b.text === '中等' ? 'bg-amber-50 text-amber-600 border-amber-100'
+                      : 'bg-rose-50 text-rose-600 border-rose-100'
+                  }`}>{b.text}</span>
+                ))}
+              </div>
+            )}
             <p className="text-2xl md:text-3xl font-extrabold text-slate-800 leading-relaxed">{prompt.cn}</p>
             {video?.title && <p className="text-xs text-slate-400 mt-3 truncate">{video.title}</p>}
           </div>

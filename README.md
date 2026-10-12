@@ -223,6 +223,7 @@ shadow_voice/
 4. **下载视频** → `./download_videos.sh`（可选，用于本地播放）
 5. **数据汇总** → `python3 data/process_data.py`（合并为 `consolidated.json` + `meta.json`）
 6. **生成智能词卡** → `npm run wordcards`（读取每条视频的 `subtitles.json`，由 AI 选词/写释义，落盘 `data/videos/<episode_dir>/wordcard.json`）
+7. **生成口语练习句** → `npm run speak-prompts -- --force`（读取每条视频的 `subtitles.json`，由 AI 精选并合并成完整句、改写成地道英文、按视频难度标注，另加 5 条场景扩展句，落盘 `data/videos/<episode_dir>/speak-prompts.json`；**产物不入库**，需对目标 `DATA_DIR` 执行；不加 `--force` 时已存在的文件会被跳过）
 
 前端直接读取 `data/` 目录下的 JSON 文件（开发时通过 Vite 自定义插件 `/data/` 路由提供静态文件服务）。
 
@@ -273,10 +274,10 @@ shadow_voice/
   - `npm run wordcards -- --force` 全量重新生成（默认跳过已有的）
   - `npm run wordcards -- --video <id|目录名>` 只处理某条视频
   - `npm run wordcards -- --dry` 只调 AI 预览条数，不写文件
-- 生成/刷新自由表达练习句：`npm run speak-prompts`（无 AI key 也能生成纯字幕句；配 key 后额外生成 ≤5 条场景扩展句）
+- 生成/刷新自由表达练习句：`npm run speak-prompts -- --force`（**需 AI_API_KEY**；由 AI 精选并合并成完整句、改写成地道英文、按视频难度标注，另加 5 条场景扩展句；无 key 时直接报错退出并保留旧文件）
   - `npm run speak-prompts -- --force` 全量重新生成（默认跳过已有的）
   - `npm run speak-prompts -- --video <id|目录名>` 只处理某条视频
-  - `npm run speak-prompts -- --dry` 只打印，不写文件
+  - `npm run speak-prompts -- --dry` 只打印整组题目、不写文件（`--dry` 不受"已存在则跳过"限制，会真的调 AI）
 - 热更新期间 `/data/` 下的 JSON 文件变更会立即反映到页面
 
 ---
