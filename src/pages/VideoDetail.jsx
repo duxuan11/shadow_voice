@@ -124,6 +124,7 @@ export default function VideoDetail() {
   const viewRecordedRef = useRef(null)
   const notifyTimerRef = useRef(null)
   const deepLinkDoneRef = useRef(false)
+  const singleSentenceLockRef = useRef(null) // 单句播放时锁定当前句，防止句末边界自动跳到下一句
 
   // ── Data loading ──
   useEffect(() => {
@@ -318,6 +319,9 @@ export default function VideoDetail() {
   /* eslint-disable react-hooks/set-state-in-effect -- 跟随播放时间同步高亮句（媒体事件源） */
   useEffect(() => {
     if (!video || !video.subtitles) return
+    // 单句播放（跟读栏"播放原音"）期间锁定当前句：句末时间会落在下一句的起始边界上，
+    // 若不锁定，播放完会自动跳到下一句。
+    if (singleSentenceLockRef.current != null) return
     const idx = findActiveSubtitleIndex(video.subtitles, currentTime)
     if (idx >= 0) setActiveSubIndex(idx)
   }, [currentTime, video])
@@ -391,12 +395,13 @@ export default function VideoDetail() {
       sessionStorage.removeItem(`shadow_voice_resume_${id}`)
     }
   }
-  const togglePlay = useCallback(() => { const vid = videoRef.current; if (!vid) return; vid.paused ? vid.play() : vid.pause() })
-  const handleSeekChange = (e) => { const t = parseFloat(e.target.value); const vid = videoRef.current; if (vid) { vid.currentTime = t; setCurrentTime(t) } }
-  const jumpToSubtitle = (st) => { const vid = videoRef.current; if (vid) { vid.currentTime = st; vid.play(); setPlaying(true) } }
+  const togglePlay = useCallback(() => { const vid = videoRef.current; if (!vid) return; singleSentenceLockRef.current = null; vid.paused ? vid.play() : vid.pause() })
+  const handleSeekChange = (e) => { const t = parseFloat(e.target.value); const vid = videoRef.current; if (vid) { singleSentenceLockRef.current = null; vid.currentTime = t; setCurrentTime(t) } }
+  const jumpToSubtitle = (st) => { const vid = videoRef.current; if (vid) { singleSentenceLockRef.current = null; vid.currentTime = st; vid.play(); setPlaying(true) } }
   // Navigate to sentence by index — sets video time + activeSubIndex directly (avoids floating-point matching)
   const navigateToSubtitle = (idx) => {
     if (!video?.subtitles || idx < 0 || idx >= video.subtitles.length) return
+    singleSentenceLockRef.current = null
     const st = video.subtitles[idx].startTime
     const vid = videoRef.current; if (vid) vid.currentTime = st
     setCurrentTime(st)
@@ -608,6 +613,9 @@ export default function VideoDetail() {
       stopAtEndRef.current = null
     }
     const { startTime, endTime } = currentSub
+    // 单句播放：锁定当前句，防止播放到句末边界时被"跟随播放时间同步高亮句"推进到下一句。
+    // 循环模式不锁定（循环逻辑自行保持当前句），同时清掉可能残留的锁定。
+    singleSentenceLockRef.current = !isLooping && endTime != null ? activeSubIndex : null
     vid.currentTime = startTime
     setCurrentTime(startTime)
     vid.play().catch(() => {})
