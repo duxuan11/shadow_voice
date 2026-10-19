@@ -264,3 +264,17 @@ test('场景：无 scene_json 的旧会话 GET 返回 scene=null 且 reply 正�
   })
   assert.equal(reply.status, 200)
 })
+
+test('A5b：/recent 同一时间戳按 id 倒序（并列时顺序稳定）', async () => {
+  const userId = 999
+  run("INSERT INTO conversation_sessions (user_id, video_id, topics_json, updated_at) VALUES (?,?,?,?)",
+    [userId, 'v1', '{}', '2026-01-01 00:00:00'])
+  run("INSERT INTO conversation_sessions (user_id, video_id, topics_json, updated_at) VALUES (?,?,?,?)",
+    [userId, 'v2', '{}', '2026-01-01 00:00:00'])
+  const res = await fetch(`${baseUrl}/api/conversation/recent`, {
+    headers: { Authorization: `Bearer ${signToken(userId)}` },
+  })
+  const body = await res.json()
+  assert.equal(body.conversations[0].videoId, 'v2')
+  assert.equal(body.conversations[1].videoId, 'v1')
+})

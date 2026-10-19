@@ -111,6 +111,31 @@ function initSchema() {
     UNIQUE(video_id, prompt_version)
   )`)
 
+  // 中译英对话：整组剧本（同一 user+video+difficulty 可有多版本，variant 递增）
+  db.run(`CREATE TABLE IF NOT EXISTS dialogue_scripts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id    TEXT NOT NULL,
+    difficulty  TEXT NOT NULL,
+    variant     INTEGER NOT NULL DEFAULT 1,
+    script_json TEXT NOT NULL,
+    model       TEXT,
+    created_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id, difficulty, variant)
+  )`)
+
+  // 中译英对话：每个剧本一份进度（cursor + 逐句答题记录 + 状态）
+  db.run(`CREATE TABLE IF NOT EXISTS dialogue_progress (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    script_id    INTEGER NOT NULL UNIQUE REFERENCES dialogue_scripts(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cursor       INTEGER NOT NULL DEFAULT 0,
+    answers_json TEXT NOT NULL DEFAULT '[]',
+    status       TEXT NOT NULL DEFAULT 'active',
+    created_at   TEXT DEFAULT (datetime('now')),
+    updated_at   TEXT DEFAULT (datetime('now'))
+  )`)
+
   // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
   // 新增：场景档案列（视频 → AI Role Play）
