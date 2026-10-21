@@ -825,6 +825,8 @@ export default function VideoDetail() {
                   className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
                 <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
                   className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
+                <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/dialogue`) }}
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🔁 中译英对话</button>
               </div>
             )}
           </div>
@@ -1184,6 +1186,8 @@ export default function VideoDetail() {
                       className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
                     <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
                       className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
+                    <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/dialogue`) }}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🔁 中译英对话</button>
                   </div>
                 )}
               </div>

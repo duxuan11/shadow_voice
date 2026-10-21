@@ -58,3 +58,24 @@ test('ai_cache UNIQUE(video_id, prompt_version) 防重复', async () => {
   const rows = db.all('SELECT * FROM ai_cache WHERE video_id = ?', ['v1'])
   assert.equal(rows.length, 1)
 })
+
+test('dialogue_scripts / dialogue_progress 存在且唯一约束生效', async () => {
+  await db.getDb()
+  const names = db.all("SELECT name FROM sqlite_master WHERE type='table'").map(r => r.name)
+  assert.ok(names.includes('dialogue_scripts'))
+  assert.ok(names.includes('dialogue_progress'))
+
+  const s = db.run(
+    'INSERT INTO dialogue_scripts (user_id, video_id, difficulty, variant, script_json) VALUES (?,?,?,?,?)',
+    [1, 'video-a', 'daily', 1, '{"lines":[]}']
+  )
+  assert.equal(db.get('SELECT difficulty FROM dialogue_scripts WHERE id=?', [s.lastInsertRowid]).difficulty, 'daily')
+  assert.throws(() => db.run(
+    'INSERT INTO dialogue_scripts (user_id, video_id, difficulty, variant, script_json) VALUES (?,?,?,?,?)',
+    [1, 'video-a', 'daily', 1, '{}']), /UNIQUE/)
+
+  const p = db.run('INSERT INTO dialogue_progress (script_id, user_id) VALUES (?,?)', [s.lastInsertRowid, 1])
+  assert.equal(db.get('SELECT cursor FROM dialogue_progress WHERE id=?', [p.lastInsertRowid]).cursor, 0)
+  assert.throws(() => db.run('INSERT INTO dialogue_progress (script_id, user_id) VALUES (?,?)',
+    [s.lastInsertRowid, 1]), /UNIQUE/)
+})

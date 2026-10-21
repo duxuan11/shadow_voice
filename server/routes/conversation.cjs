@@ -1,8 +1,7 @@
 const express = require('express')
-const fs = require('fs')
-const path = require('path')
 const { getDb, run, get, all } = require('../db.cjs')
 const { authMiddleware } = require('../auth.cjs')
+const { loadSubtitles, findVideo } = require('../lib/videoData.cjs')
 const {
   PROMPT_VERSION,
   SCENE_PROMPT_VERSION,
@@ -16,32 +15,6 @@ const {
 const { chat, extractJson, isConfigured } = require('../services/ai/provider.cjs')
 
 const router = express.Router()
-
-// ── 数据读取（视频索引 + 字幕）───────────────────────────
-const DATA_DIR = process.env.SHADOW_VOICE_DATA_DIR || path.join(__dirname, '..', '..', 'data')
-let indexCache = { at: 0, videos: null }
-
-function loadVideoIndex() {
-  const p = path.join(DATA_DIR, 'consolidated.json')
-  if (!fs.existsSync(p)) return []
-  const mtime = fs.statSync(p).mtimeMs
-  if (indexCache.videos && mtime === indexCache.at) return indexCache.videos
-  const videos = JSON.parse(fs.readFileSync(p, 'utf-8'))
-  indexCache = { at: mtime, videos }
-  return videos
-}
-
-function loadSubtitles(episodeDir) {
-  const p = path.join(DATA_DIR, 'videos', episodeDir, 'subtitles.json')
-  if (!fs.existsSync(p)) return []
-  const subs = JSON.parse(fs.readFileSync(p, 'utf-8'))
-  return Array.isArray(subs) ? subs : []
-}
-
-function findVideo(videoId) {
-  const videos = loadVideoIndex()
-  return videos.find((v) => v.id === videoId) || null
-}
 
 // ── 主题提取（ai_cache 按 video_id + PROMPT_VERSION 缓存）──
 async function getTopicsForVideo(videoId, video) {
@@ -218,7 +191,7 @@ router.get('/recent', authMiddleware, async (req, res) => {
       `SELECT s.id, s.video_id, s.status, s.updated_at, s.completed_at, s.review_json,
               (SELECT COUNT(*) FROM conversation_messages m WHERE m.session_id=s.id AND m.role='user') AS user_turns,
               (SELECT text FROM conversation_messages m2 WHERE m2.session_id=s.id AND m2.role='user' ORDER BY m2.id DESC LIMIT 1) AS last_user_text
-       FROM conversation_sessions s WHERE s.user_id=? ORDER BY s.updated_at DESC LIMIT ?`,
+       FROM conversation_sessions s WHERE s.user_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?`,
       [req.userId, limit]
     )
     const list = rows.map(row => {
