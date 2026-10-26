@@ -17,6 +17,7 @@ const asrRoutes = require('./routes/asr.cjs')
 const practiceRoutes = require('./routes/practice.cjs')
 const speakRoutes = require('./routes/speak.cjs')
 const dialogueRoutes = require('./routes/dialogue.cjs')
+const textRoutes = require('./routes/texts.cjs')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -38,6 +39,7 @@ app.use('/api/asr', asrRoutes.router)
 app.use('/api/practice', practiceRoutes)
 app.use('/api/speak', speakRoutes.router)
 app.use('/api/dialogue', dialogueRoutes.router)
+app.use('/api/texts', textRoutes.router)
 
 // Health check
 app.get('/api/health', async (req, res) => {
