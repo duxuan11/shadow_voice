@@ -16,6 +16,8 @@ import Login from './pages/Login'
 import ConversationPage from './pages/ConversationPage'
 import SpeakPracticePage from './pages/SpeakPracticePage'
 import DialoguePage from './pages/DialoguePage'
+import TextPracticePage from './pages/TextPracticePage'
+import TextDocPage from './pages/TextDocPage'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -36,6 +38,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="records" element={<LearningRecords />} />
             <Route path="profile" element={<Profile />} />
             <Route path="vocab/practice" element={<VocabPracticePage />} />
+            <Route path="texts" element={<TextPracticePage />} />
+            <Route path="texts/:id" element={<TextDocPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

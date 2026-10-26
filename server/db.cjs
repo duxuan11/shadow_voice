@@ -136,6 +136,33 @@ function initSchema() {
     updated_at   TEXT DEFAULT (datetime('now'))
   )`)
 
+  // 文本练习：用户粘贴的英文文档（标题 + 原文 + 切句结果 + 中文翻译缓存）
+  db.run(`CREATE TABLE IF NOT EXISTS text_docs (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title          TEXT NOT NULL,
+    source_text    TEXT NOT NULL,
+    sentences_json TEXT NOT NULL,
+    truncated      INTEGER NOT NULL DEFAULT 0,
+    model          TEXT,
+    created_at     TEXT DEFAULT (datetime('now')),
+    updated_at     TEXT DEFAULT (datetime('now'))
+  )`)
+
+  // 文本练习：每份文本一份进度（跟读游标 + 回译游标 + 逐句记录 + 状态）。
+  // 注意：本库未开启 PRAGMA foreign_keys，CASCADE 不生效，删除文本时路由需显式删本表行。
+  db.run(`CREATE TABLE IF NOT EXISTS text_progress (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id           INTEGER NOT NULL UNIQUE REFERENCES text_docs(id) ON DELETE CASCADE,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    shadow_cursor    INTEGER NOT NULL DEFAULT 0,
+    translate_cursor INTEGER NOT NULL DEFAULT 0,
+    shadow_json      TEXT NOT NULL DEFAULT '[]',
+    answers_json     TEXT NOT NULL DEFAULT '[]',
+    status           TEXT NOT NULL DEFAULT 'active',
+    updated_at       TEXT DEFAULT (datetime('now'))
+  )`)
+
   // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
   // 新增：场景档案列（视频 → AI Role Play）

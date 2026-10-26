@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Calendar, BarChart3, BookOpen, Star, Headphones, Clock, Play, ChevronRight, LogOut, Shield } from 'lucide-react'
+import { User, Mail, Calendar, BarChart3, BookOpen, Star, Headphones, Clock, Play, ChevronRight, LogOut, Shield, FileText } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 
 export default function Profile() {
@@ -9,6 +9,7 @@ export default function Profile() {
   const [stats, setStats] = useState(null)
   const [videos, setVideos] = useState([])
   const [vocabulary, setVocabulary] = useState([])
+  const [textDocs, setTextDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -24,16 +25,18 @@ export default function Profile() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [videosRes, statsRes, vocabRes, historyRes] = await Promise.all([
+        const [videosRes, statsRes, vocabRes, historyRes, textsRes] = await Promise.all([
           fetch('/data/consolidated.json').then(r => r.json()),
           isGuest ? Promise.resolve(null) : authFetch('/auth/stats').then(r => r.json()).catch(() => null),
           isGuest ? Promise.resolve({ vocabulary: [] }) : authFetch('/vocab').then(r => r.json()).catch(() => ({ vocabulary: [] })),
           isGuest ? Promise.resolve(null) : authFetch('/history').then(r => r.json()).catch(() => null),
+          isGuest ? Promise.resolve({ docs: [] }) : authFetch('/texts').then(r => r.json()).catch(() => ({ docs: [] })),
         ])
         setVideos(videosRes)
         setStats(statsRes)
         setVocabulary(vocabRes.vocabulary || [])
         if (historyRes && historyRes.history) setWatchedHistory(historyRes.history)
+        if (Array.isArray(textsRes?.docs)) setTextDocs(textsRes.docs)
       } catch {
         setError('加载数据失败')
       } finally {
@@ -231,6 +234,49 @@ export default function Profile() {
           <div className="profile-vocab-tags">
             {vocabulary.slice(0, 12).map((v, i) => (
               <span key={i} className="profile-vocab-tag">{(v.translation || v.context_cn || v.content || v.word)}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 文本练习（入口：个人中心 → 文本练习 → 跟读 / 汉译英） */}
+      <div className="profile-section">
+        <div className="profile-section-header">
+          <h2>
+            <FileText size={18} />
+            <span>文本练习</span>
+          </h2>
+          <button type="button" className="profile-section-link" onClick={() => navigate('/texts')}>
+            <span>全部文本</span>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        {isGuest ? (
+          <div className="profile-empty">
+            <p>登录后可保存文本练习进度</p>
+            <button onClick={() => navigate('/login')}>登录 / 注册</button>
+          </div>
+        ) : textDocs.length === 0 ? (
+          <div className="profile-empty">
+            <p>还没有文本</p>
+            <span className="empty-hint">粘贴英文技术文档、论文摘要、README 或邮件，生成跟读与汉译英练习</span>
+          </div>
+        ) : (
+          <div className="profile-video-list">
+            {textDocs.slice(0, 4).map(doc => (
+              <div key={doc.id} className="profile-video-item" onClick={() => navigate(`/texts/${doc.id}`)}>
+                <div className="profile-video-info">
+                  <h3>{doc.title}</h3>
+                  <div className="profile-video-meta">
+                    <span>{doc.sentenceCount} 句</span>
+                    <span>跟读 {doc.shadowDone}/{doc.sentenceCount}</span>
+                    <span>翻译 {doc.translateDone}/{doc.sentenceCount}</span>
+                    {doc.status === 'completed' && <span>已完成</span>}
+                    {!doc.cnReady && <span>中文未生成</span>}
+                  </div>
+                </div>
+                <ChevronRight size={18} className="profile-video-play" />
+              </div>
             ))}
           </div>
         )}

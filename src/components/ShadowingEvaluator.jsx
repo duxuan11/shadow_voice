@@ -72,7 +72,7 @@ function wordColor(score) {
   return 'text-rose-600 bg-rose-50 underline decoration-wavy'
 }
 
-export default function ShadowingEvaluator({ refText, onPracticed }) {
+export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
   const { authFetch, user } = useAuth()
   const [phase, setPhase] = useState('ready') // ready | recording | evaluating | result | error
   const [result, setResult] = useState(null)
@@ -153,9 +153,13 @@ export default function ShadowingEvaluator({ refText, onPracticed }) {
       engineBackResultDone: (msg) => {
         try {
           clearTimers()
-          setResult(parseResult(msg))
+          const parsed = parseResult(msg)
+          setResult(parsed)
           setPhaseSafe('result')
+          // 可选回调：文本练习用它把每句最佳分落库；不传则行为与原来完全一致
+          onResult?.(parsed)
         } catch {
+          clearTimers()
           setPhaseSafe('error'); setError('评测结果解析失败，请重试')
         }
       },
@@ -179,7 +183,7 @@ export default function ShadowingEvaluator({ refText, onPracticed }) {
     })
     engineRef.current = engine
     return engine
-  }, [user, setPhaseSafe, clearTimers])
+  }, [user, setPhaseSafe, clearTimers, onResult])
 
   const waitInit = useCallback(() => {
     if (initRef.current.done) return Promise.resolve()
