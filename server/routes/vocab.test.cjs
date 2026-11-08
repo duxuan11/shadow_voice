@@ -47,6 +47,13 @@ async function list(userId = USER_ID) {
   return { status: res.status, body: await res.json() }
 }
 
+async function patch(word, body, userId = USER_ID) {
+  const res = await fetch(`${baseUrl}/api/vocab/${encodeURIComponent(word)}`, {
+    method: 'PATCH', headers: authHeaders(userId), body: JSON.stringify(body),
+  })
+  return { status: res.status, body: await res.json() }
+}
+
 async function practice(word, correct, userId = USER_ID) {
   const res = await fetch(`${baseUrl}/api/vocab/practice`, {
     method: 'POST', headers: authHeaders(userId), body: JSON.stringify({ word, correct }),
@@ -230,4 +237,100 @@ test('中文兜底：未传 contextCn 时为「空字符串」', async () => {
   await add({ content: 'noctx', type: 'word', videoId: 'cx', videoTitle: 'CX' })
   const { body } = await list()
   assert.equal(body.vocabulary.find(v => v.word === 'noctx').context_cn, '')
+})
+
+test('句子收藏：type=sentence，来源带 startTime', async () => {
+  const { status, body } = await add({
+    content: 'Could you tell me where the station is?',
+    translation: '你能告诉我车站在哪里吗？',
+    type: 'sentence',
+    videoId: 'sv1', videoTitle: 'Street Asking', startTime: 12.5,
+  })
+  assert.equal(status, 200)
+  assert.equal(body.entry.type, 'sentence')
+  assert.deepEqual(body.entry.sources, [{ videoId: 'sv1', videoTitle: 'Street Asking', startTime: 12.5 }])
+})
+
+test('句子收藏：同一句多视频合并来源', async () => {
+  await add({ content: 'Thanks a lot.', type: 'sentence', videoId: 'sv2', videoTitle: 'A', startTime: 3 })
+  await add({ content: 'thanks a lot', type: 'sentence', videoId: 'sv3', videoTitle: 'B', startTime: 9 })
+  const { body } = await list()
+  const entry = body.vocabulary.find(v => v.word === 'thanks a lot')
+  assert.equal(entry.sources.length, 2)
+  assert.deepEqual(entry.sources.map(s => s.videoId).sort(), ['sv2', 'sv3'])
+})
+
+test('PATCH：更新笔记与释义', async () => {
+  await add({ content: 'patchnote', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  const { status, body } = await patch('patchnote', { note: '容易拼错', translation: '新释义' })
+  assert.equal(status, 200)
+  assert.equal(body.ok, true)
+  assert.equal(body.entry.note, '容易拼错')
+  assert.equal(body.entry.translation, '新释义')
+
+  const { body: listBody } = await list()
+  assert.equal(listBody.vocabulary.find(v => v.word === 'patchnote').note, '容易拼错')
+})
+
+test('PATCH：只传 note 不动释义；只传 translation 不动笔记', async () => {
+  await add({ content: 'partpatch', translation: '原释义', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  await patch('partpatch', { note: '只有笔记' })
+  await patch('partpatch', { translation: '只有释义' })
+  const { body } = await list()
+  const entry = body.vocabulary.find(v => v.word === 'partpatch')
+  assert.equal(entry.note, '只有笔记')
+  assert.equal(entry.translation, '只有释义')
+})
+
+test('PATCH：笔记超 200 字 → 400', async () => {
+  await add({ content: 'longnote', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  const { status } = await patch('longnote', { note: '字'.repeat(201) })
+  assert.equal(status, 400)
+})
+
+test('PATCH：释义超 300 字 → 400', async () => {
+  await add({ content: 'longtr', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  const { status } = await patch('longtr', { translation: '译'.repeat(301) })
+  assert.equal(status, 400)
+})
+
+test('PATCH：条目不存在 → 404', async () => {
+  const { status } = await patch('no-such-entry', { note: 'x' })
+  assert.equal(status, 404)
+})
+
+test('DELETE ?videoId=：只移除该来源；最后一个来源移除后删除整条', async () => {
+  await add({ content: 'src-word', type: 'sentence', videoId: 's1', videoTitle: 'S1', startTime: 1 })
+  await add({ content: 'src-word', type: 'sentence', videoId: 's2', videoTitle: 'S2', startTime: 2 })
+
+  let res = await fetch(`${baseUrl}/api/vocab/src-word?videoId=s1`, { method: 'DELETE', headers: authHeaders() })
+  assert.equal(res.status, 200)
+  let { body } = await list()
+  let entry = body.vocabulary.find(v => v.word === 'src word')
+  assert.deepEqual(entry.sources.map(s => s.videoId), ['s2'])
+
+  res = await fetch(`${baseUrl}/api/vocab/src-word?videoId=s2`, { method: 'DELETE', headers: authHeaders() })
+  assert.equal(res.status, 200)
+  ;({ body } = await list())
+  assert.ok(!body.vocabulary.some(v => v.word === 'src word'))
+})
+
+test('DELETE ?videoId=：来源不存在 → 条目不动', async () => {
+  await add({ content: 'keep-word', type: 'word', videoId: 'k1', videoTitle: 'K' })
+  const res = await fetch(`${baseUrl}/api/vocab/keep-word?videoId=nope`, { method: 'DELETE', headers: authHeaders() })
+  assert.equal(res.status, 200)
+  const { body } = await list()
+  assert.equal(body.vocabulary.find(v => v.word === 'keep word').sources.length, 1)
+})
+
+test('DELETE ?videoId=：无 sources 的老数据走兜底合成来源', async () => {
+  // 直接造一条无 sources JSON 的老数据行
+  const { getDb, run } = require('../db.cjs')
+  await getDb()
+  run('INSERT INTO vocabulary (user_id, word, content, type, video_id, video_title) VALUES (?, ?, ?, ?, ?, ?)',
+    [USER_ID, 'legacyrow', 'legacyrow', 'word', 'lg1', 'Legacy'])
+  const res = await fetch(`${baseUrl}/api/vocab/legacyrow?videoId=lg1`, { method: 'DELETE', headers: authHeaders() })
+  assert.equal(res.status, 200)
+  const { body } = await list()
+  assert.ok(!body.vocabulary.some(v => v.word === 'legacyrow'))
 })
