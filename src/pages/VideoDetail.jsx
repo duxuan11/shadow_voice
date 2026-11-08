@@ -95,7 +95,6 @@ export default function VideoDetail() {
   const [vocabulary, setVocabulary] = useState([])
   const [vocabBusy, setVocabBusy] = useState(() => new Set())
   const [vocabToast, setVocabToast] = useState(null)
-  const [bookmarkedIds, setBookmarkedIds] = useState([])
 
   // Cloze state
   const [clozeOptions, setClozeOptions] = useState([])
@@ -124,6 +123,7 @@ export default function VideoDetail() {
   const viewRecordedRef = useRef(null)
   const notifyTimerRef = useRef(null)
   const deepLinkDoneRef = useRef(false)
+  const deepSeekDoneRef = useRef(false) // ?t= 深链只跳转一次
   const singleSentenceLockRef = useRef(null) // 单句播放时锁定当前句，防止句末边界自动跳到下一句
 
   // ── Data loading ──
@@ -179,6 +179,8 @@ export default function VideoDetail() {
   // ── Progress: load saved position (skip for guests) ──
   useEffect(() => {
     if (isGuest || !id) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('t')) return // ?t= 深链优先：由 handleLoadedMetadata 处理，跳过进度续播
     authFetch(`/progress/${id}`).then(r => r.json()).then(d => {
       if (d.progress && !d.progress.completed && d.progress.currentTime > 5) {
         // Resume from last position after video metadata loads
@@ -386,6 +388,15 @@ export default function VideoDetail() {
   const handleLoadedMetadata = () => {
     const vid = videoRef.current; if (!vid) return
     setDuration(vid.duration)
+    // ?t= 深链：跳到指定时间（生词本句子来源跳转）
+    const params = new URLSearchParams(window.location.search)
+    const tParam = parseFloat(params.get('t') || '')
+    if (Number.isFinite(tParam) && !deepSeekDoneRef.current) {
+      deepSeekDoneRef.current = true
+      vid.currentTime = tParam
+      setCurrentTime(tParam)
+      return
+    }
     // Resume from saved position if available
     const savedTime = sessionStorage.getItem(`shadow_voice_resume_${id}`)
     if (savedTime) {
@@ -527,6 +538,68 @@ export default function VideoDetail() {
     }
   }, [authFetch, isGuest, notify])
 
+  // ── 字幕句子收藏（♥ → 生词本 sentence 条目，按来源管理）──
+  const isSentenceBookmarked = (sub) => {
+    const key = normalizeVocabKey(sub?.textEn)
+    if (!key) return false
+    const entry = vocabulary.find(v => (v.word || normalizeVocabKey(v.content)) === key)
+    return !!entry && Array.isArray(entry.sources) && entry.sources.some(s => s && s.videoId === id)
+  }
+
+  const toggleSentenceFav = async (e, sub) => {
+    e.stopPropagation()
+    const content = String(sub?.textEn ?? '').trim()
+    const key = normalizeVocabKey(content)
+    if (!key) return
+    if (isGuest) { notify('登录后才能收藏句子'); return }
+    if (vocabBusy.has(key)) return
+    setVocabBusy(prev => new Set(prev).add(key))
+    try {
+      if (isSentenceBookmarked(sub)) {
+        const r = await authFetch(`/vocab/${encodeURIComponent(key)}?videoId=${encodeURIComponent(id)}`, { method: 'DELETE' })
+        if (r.ok) {
+          setVocabulary(prev => {
+            const entry = prev.find(v => (v.word || normalizeVocabKey(v.content)) === key)
+            if (!entry) return prev
+            const sources = (entry.sources || []).filter(s => s && s.videoId !== id)
+            if (sources.length === 0) return prev.filter(v => (v.word || normalizeVocabKey(v.content)) !== key)
+            return prev.map(v => (v.word || normalizeVocabKey(v.content)) === key ? { ...v, sources } : v)
+          })
+          notify('已取消收藏该句')
+        } else {
+          notify('取消收藏失败，请重试')
+        }
+      } else {
+        const r = await authFetch('/vocab', {
+          method: 'POST',
+          body: JSON.stringify({
+            content,
+            word: key,
+            type: 'sentence',
+            translation: String(sub.textCn ?? '').trim(),
+            videoId: id,
+            videoTitle: video?.title,
+            startTime: sub.startTime ?? null,
+          }),
+        })
+        if (r.ok) {
+          const d = await r.json().catch(() => ({}))
+          setVocabulary(prev => {
+            const rest = prev.filter(v => (v.word || normalizeVocabKey(v.content)) !== key)
+            return d.entry ? [d.entry, ...rest] : rest
+          })
+          notify('句子已收藏，可在生词本查看')
+        } else {
+          notify('收藏失败，请重试')
+        }
+      }
+    } catch {
+      notify('网络错误，请重试')
+    } finally {
+      setVocabBusy(prev => { const n = new Set(prev); n.delete(key); return n })
+    }
+  }
+
   // 字幕点词/弹窗收藏：沿用原有入口，补充音标与释义
   const pushToVocab = (word, sentenceCn = '') => {
     const content = String(word ?? '').trim()
@@ -633,9 +706,6 @@ export default function VideoDetail() {
       vid.addEventListener('timeupdate', onTime)
     }
   }
-
-  // ── Bookmark ──
-  const toggleBookmark = (e, subId) => { e.stopPropagation(); setBookmarkedIds(p => p.includes(subId) ? p.filter(id => id !== subId) : [...p, subId]) }
 
   // ── Subtitle mode ──
   const cycleSubtitleMode = () => {
@@ -865,7 +935,7 @@ export default function VideoDetail() {
           {/* TRANSCRIPT TAB */}
           {mobileTab === 'transcript' && video.subtitles.map((sub, idx) => {
             const isActive = idx === activeSubIndex
-            const isBookmarked = bookmarkedIds.includes(idx)
+            const isBookmarked = isSentenceBookmarked(sub)
             return (
               <div key={idx} data-mobile-sub-index={idx}
                 onClick={() => { jumpToSubtitle(sub.startTime) }}
@@ -889,7 +959,7 @@ export default function VideoDetail() {
                         </>
                       ) : formatTime(sub.startTime)}
                     </span>
-                    <button onClick={(e) => toggleBookmark(e, idx)} className="p-1 rounded-lg text-slate-300 hover:text-rose-500 transition-all cursor-pointer active:scale-75">
+                    <button onClick={(e) => toggleSentenceFav(e, sub)} disabled={vocabBusy.has(normalizeVocabKey(sub.textEn))} className="p-1 rounded-lg text-slate-300 hover:text-rose-500 transition-all cursor-pointer active:scale-75 disabled:opacity-50">
                       <Heart className={`h-4 w-4 ${isBookmarked ? 'text-rose-500 fill-rose-500' : ''}`} />
                     </button>
                   </div>
@@ -1303,14 +1373,14 @@ export default function VideoDetail() {
                   {/* Desktop: Transcript */}
                   {sidebarTab === 'transcript' && video.subtitles.map((sub, idx) => {
                     const isActive = idx === activeSubIndex
-                    const isBookmarked = bookmarkedIds.includes(idx)
+                    const isBookmarked = isSentenceBookmarked(sub)
                     return (
                       <div key={idx} id={`sub-item-${idx}`}
                         onClick={() => jumpToSubtitle(sub.startTime)}
                         className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col space-y-3 ${isActive ? 'bg-indigo-50/40 border-indigo-200 shadow-sm ring-1 ring-indigo-200/20 scale-[1.01] border-l-4 border-l-indigo-600' : 'bg-white hover:bg-slate-50 border-slate-100 shadow-xs'}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full font-mono">{formatTime(sub.startTime)}</span>
-                          <button onClick={(e) => toggleBookmark(e, idx)} className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-slate-100/50 transition-all cursor-pointer" title={isBookmarked ? '取消收藏' : '收藏句子'}>
+                          <button onClick={(e) => toggleSentenceFav(e, sub)} disabled={vocabBusy.has(normalizeVocabKey(sub.textEn))} className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-slate-100/50 transition-all cursor-pointer disabled:opacity-50" title={isBookmarked ? '取消收藏' : '收藏句子'}>
                             <Heart className={`h-4.5 w-4.5 transition-transform duration-200 active:scale-75 ${isBookmarked ? 'text-rose-500 fill-rose-500 scale-110 animate-bounce-short' : 'stroke-[2.2]'}`} />
                           </button>
                         </div>
