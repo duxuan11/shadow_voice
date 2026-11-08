@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PRACTICE_TYPE_LABELS,
+  PRACTICE_TYPE_FILTERS,
   shuffle,
   buildPracticeQueue,
   proficiencyFrom,
@@ -69,5 +70,43 @@ test('summarizePracticeByType：按类型汇总', () => {
   assert.equal(s.word.correctCount, 1)
   assert.equal(s.word.proficiency.percent, 25)
   assert.equal(s.phrase.practiceCount, 2)
-  assert.equal(s.core_phrase.proficiency.level, 'new')
+  assert.equal(s.sentence.total, 1)
+  assert.equal(s.sentence.proficiency.level, 'new')
+})
+
+test('buildPracticeQueue：type=sentence 归并 core_phrase 与 sentence', () => {
+  const list = [
+    { word: 'a', type: 'word' },
+    { word: 'c', type: 'core_phrase' },
+    { word: 'd', type: 'sentence' },
+  ]
+  const q = buildPracticeQueue(list, { type: 'sentence' })
+  assert.deepEqual(q.map(v => v.word).sort(), ['c', 'd'])
+})
+
+test('buildPracticeQueue：type=core_phrase 仍只筛核心短语（兼容旧深链）', () => {
+  const list = [
+    { word: 'c', type: 'core_phrase' },
+    { word: 'd', type: 'sentence' },
+  ]
+  assert.deepEqual(buildPracticeQueue(list, { type: 'core_phrase' }).map(v => v.word), ['c'])
+})
+
+test('summarizePracticeByType：sentence 桶合并两类统计', () => {
+  const summary = summarizePracticeByType([
+    { type: 'core_phrase', practice_count: 2, correct_count: 1 },
+    { type: 'sentence', practice_count: 3, correct_count: 2 },
+    { type: 'word', practice_count: 1, correct_count: 1 },
+  ])
+  assert.equal(summary.sentence.total, 2)
+  assert.equal(summary.sentence.practiceCount, 5)
+  assert.equal(summary.sentence.correctCount, 3)
+})
+
+test('PRACTICE_TYPE_LABELS：sentence 显示为句子', () => {
+  assert.equal(PRACTICE_TYPE_LABELS.sentence, '句子')
+})
+
+test('PRACTICE_TYPE_FILTERS：句子筛选 id 为 sentence', () => {
+  assert.deepEqual(PRACTICE_TYPE_FILTERS.map(f => f.id), ['all', 'word', 'phrase', 'sentence'])
 })

@@ -4,7 +4,7 @@ const { authMiddleware } = require('../auth.cjs')
 
 const router = express.Router()
 
-const VOCAB_TYPES = new Set(['word', 'phrase', 'core_phrase'])
+const VOCAB_TYPES = new Set(['word', 'phrase', 'core_phrase', 'sentence'])
 
 // 规范化去重 key：小写、去标点（保留撇号）、合并空白。
 // 与前端 src/utils/vocabulary.js 的 normalizeVocabKey 保持一致。
@@ -59,6 +59,7 @@ function toEntry(row) {
     context_cn: row.context_cn || '',
     type: row.type || 'word',
     phonetic: row.phonetic || '',
+    note: row.note || '',
     practice_count: row.practice_count || 0,
     correct_count: row.correct_count || 0,
     last_practiced_at: row.last_practiced_at || null,
@@ -99,13 +100,22 @@ router.post('/', authMiddleware, async (req, res) => {
   const phonetic = String(body.phonetic ?? '').trim()
   const videoId = body.videoId ?? null
   const videoTitle = body.videoTitle ?? null
+  // 句子收藏附带时间戳，用于从生词本跳回视频对应位置
+  const startTime = type === 'sentence' && body.startTime != null && Number.isFinite(Number(body.startTime))
+    ? Number(body.startTime)
+    : null
+  const makeSource = () => {
+    const s = { videoId, videoTitle }
+    if (startTime != null) s.startTime = startTime
+    return s
+  }
 
   await getDb()
   try {
     const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
 
     if (existing) {
-      const sources = mergeSources(parseSources(existing), [{ videoId, videoTitle }])
+      const sources = mergeSources(parseSources(existing), [makeSource()])
       run(
         `UPDATE vocabulary
            SET content = ?, translation = ?, context_cn = ?, type = ?, phonetic = ?, sources = ?,
@@ -127,7 +137,7 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.json({ ok: true, added: false, entry })
     }
 
-    const sources = mergeSources([], [{ videoId, videoTitle }])
+    const sources = mergeSources([], [makeSource()])
     const result = run(
       `INSERT INTO vocabulary (user_id, word, content, translation, context_cn, type, phonetic, sources, video_id, video_title)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -168,11 +178,58 @@ router.post('/practice', authMiddleware, async (req, res) => {
   }
 })
 
-// DELETE /api/vocab/:word — remove by normalized key (encoded phrase keys supported)
+// PATCH /api/vocab/:word — 编辑笔记（≤200 字）与中文释义（≤300 字），可只传其一
+router.patch('/:word', authMiddleware, async (req, res) => {
+  const body = req.body || {}
+  const key = normalizeKey(req.params.word)
+  if (!key) return res.status(400).json({ error: '无效内容' })
+
+  await getDb()
+  try {
+    const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
+    if (!existing) return res.status(404).json({ error: '条目不存在' })
+
+    const note = body.note != null ? String(body.note).trim() : (existing.note || '')
+    const translation = body.translation != null ? String(body.translation).trim() : (existing.translation || '')
+    if (note.length > 200) return res.status(400).json({ error: '笔记不能超过 200 字' })
+    if (translation.length > 300) return res.status(400).json({ error: '释义不能超过 300 字' })
+
+    run('UPDATE vocabulary SET note = ?, translation = ? WHERE id = ?', [note, translation, existing.id])
+    const entry = toEntry(get('SELECT * FROM vocabulary WHERE id = ?', [existing.id]))
+    res.json({ ok: true, entry })
+  } catch {
+    res.status(500).json({ error: '保存失败' })
+  }
+})
+
+// DELETE /api/vocab/:word?videoId=xxx — 仅移除该来源；条目再无来源则整条删除。
+// 不带 videoId 时保持旧行为：整条删除（生词本页「移除」按钮沿用）。
 router.delete('/:word', authMiddleware, async (req, res) => {
   await getDb()
   const key = normalizeKey(req.params.word)
   if (!key) return res.status(400).json({ error: '无效内容' })
+
+  const videoId = typeof req.query.videoId === 'string' ? req.query.videoId : undefined
+  if (videoId !== undefined) {
+    if (!videoId) return res.status(400).json({ error: 'videoId 无效' })
+    try {
+      const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
+      if (!existing) return res.json({ ok: true })
+      const sources = parseSources(existing).filter(s => s.videoId !== videoId)
+      if (sources.length === 0) {
+        run('DELETE FROM vocabulary WHERE id = ?', [existing.id])
+      } else {
+        run(
+          'UPDATE vocabulary SET sources = ?, video_id = ?, video_title = ? WHERE id = ?',
+          [JSON.stringify(sources), sources[0].videoId || null, sources[0].videoTitle || null, existing.id]
+        )
+      }
+      return res.json({ ok: true })
+    } catch {
+      return res.status(500).json({ error: '移除失败' })
+    }
+  }
+
   run('DELETE FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
   res.json({ ok: true })
 })

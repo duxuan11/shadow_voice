@@ -27,7 +27,8 @@ export default function VocabPracticePage() {
 
   const [selectedType, setSelectedType] = useState(() => {
     const t = searchParams.get('type')
-    return ['all', 'word', 'phrase', 'core_phrase'].includes(t) ? t : 'all'
+    if (t === 'core_phrase') return 'sentence' // 旧深链归一
+    return ['all', 'word', 'phrase', 'sentence'].includes(t) ? t : 'all'
   })
   const [phase, setPhase] = useState('setup') // setup | practice | finished
   const [queue, setQueue] = useState([])
@@ -309,7 +310,7 @@ export default function VocabPracticePage() {
                     <table className="vp-stats-table">
                       <thead><tr><th>类型</th><th>数量</th><th>练习次数</th><th>正确次数</th><th>熟练度</th></tr></thead>
                       <tbody>
-                        {['word', 'phrase', 'core_phrase'].map(t => {
+                        {['word', 'phrase', 'sentence'].map(t => {
                           const s = summary[t]
                           return (
                             <tr key={t}>

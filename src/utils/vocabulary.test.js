@@ -9,6 +9,8 @@ import {
   filterVocabByType,
   countVocabByType,
   VOCAB_TYPE_LABELS,
+  SENTENCE_TYPES,
+  isSentenceType,
 } from './vocabulary.js'
 
 test('normalizeVocabKey：小写、去标点、合并空白，保留撇号', () => {
@@ -91,11 +93,45 @@ test('filterVocabByType / countVocabByType', () => {
   assert.equal(filterVocabByType(vocab, 'word').length, 3) // 无 type 视为 word
   assert.equal(filterVocabByType(vocab, 'phrase').length, 1)
   assert.equal(filterVocabByType(vocab, 'core_phrase').length, 1)
-  assert.deepEqual(countVocabByType(vocab), { all: 5, word: 3, phrase: 1, core_phrase: 1 })
+  assert.deepEqual(countVocabByType(vocab), { all: 5, word: 3, phrase: 1, sentence: 1 })
 })
 
-test('VOCAB_TYPE_LABELS：三种类型都有中文标签', () => {
+test('VOCAB_TYPE_LABELS：四种类型都有中文标签', () => {
   assert.equal(VOCAB_TYPE_LABELS.word, '单词')
   assert.equal(VOCAB_TYPE_LABELS.phrase, '短语')
-  assert.equal(VOCAB_TYPE_LABELS.core_phrase, '核心短语')
+  assert.equal(VOCAB_TYPE_LABELS.core_phrase, '句子')
+  assert.equal(VOCAB_TYPE_LABELS.sentence, '句子')
+})
+
+test('isSentenceType / SENTENCE_TYPES：core_phrase 与 sentence 都是句子', () => {
+  assert.deepEqual(SENTENCE_TYPES, ['core_phrase', 'sentence'])
+  assert.equal(isSentenceType('core_phrase'), true)
+  assert.equal(isSentenceType('sentence'), true)
+  assert.equal(isSentenceType('word'), false)
+  assert.equal(isSentenceType('phrase'), false)
+})
+
+test('filterVocabByType：sentence 归并 core_phrase 与 sentence', () => {
+  const list = [
+    { word: 'a', type: 'word' },
+    { word: 'b', type: 'phrase' },
+    { word: 'c', type: 'core_phrase' },
+    { word: 'd', type: 'sentence' },
+  ]
+  assert.deepEqual(filterVocabByType(list, 'sentence').map(v => v.word), ['c', 'd'])
+  assert.deepEqual(filterVocabByType(list, 'core_phrase').map(v => v.word), ['c'])
+  assert.deepEqual(filterVocabByType(list, 'all').length, 4)
+})
+
+test('countVocabByType：sentence 桶合并两类', () => {
+  const counts = countVocabByType([
+    { type: 'word' },
+    { type: 'core_phrase' },
+    { type: 'sentence' },
+    { type: 'sentence' },
+  ])
+  assert.equal(counts.all, 4)
+  assert.equal(counts.word, 1)
+  assert.equal(counts.phrase, 0)
+  assert.equal(counts.sentence, 3)
 })

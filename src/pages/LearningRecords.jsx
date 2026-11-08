@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Clock, Trash2, Play, Star, MessageSquare, Headphones } from 'lucide-react'
+import { BookOpen, Clock, Trash2, Play, Star, MessageSquare, Headphones, Pencil } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { proficiencyOf } from '../utils/vocabPractice'
 import {
@@ -14,7 +14,7 @@ const VOCAB_FILTERS = [
   { id: 'all', label: '全部' },
   { id: 'word', label: '单词' },
   { id: 'phrase', label: '短语' },
-  { id: 'core_phrase', label: '核心短语' },
+  { id: 'sentence', label: '句子' },
 ]
 
 // SQLite datetime('now') 为 UTC（"YYYY-MM-DD HH:MM:SS"），补 T/Z 再本地化。
@@ -36,6 +36,11 @@ export default function LearningRecords() {
   const [vocabulary, setVocabulary] = useState([])
   const [conversations, setConversations] = useState([])
   const [vocabFilter, setVocabFilter] = useState('all')
+  const [editingKey, setEditingKey] = useState(null)
+  const [editTranslation, setEditTranslation] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [editBusy, setEditBusy] = useState(false)
+  const [editError, setEditError] = useState(null)
   const [vocabBusy, setVocabBusy] = useState(() => new Set())
   const [watchedHistory, setWatchedHistory] = useState(() => {
     if (isGuest) {
@@ -115,9 +120,58 @@ export default function LearningRecords() {
       .finally(() => setVocabBusy(prev => { const n = new Set(prev); n.delete(key); return n }))
   }
 
-  // 点来源回到对应视频词卡位置
+  const openEdit = (entry) => {
+    if (editBusy) return // 保存进行中不允许切换编辑目标，避免竞态
+    const key = entry.word || normalizeVocabKey(entry.content)
+    if (!key) return
+    setEditingKey(key)
+    setEditTranslation(entry.translation || '')
+    setEditNote(entry.note || '')
+    setEditError(null)
+  }
+
+  const cancelEdit = () => {
+    if (editBusy) return
+    setEditingKey(null)
+    setEditError(null)
+  }
+
+  const saveEdit = async (entry) => {
+    const key = entry.word || normalizeVocabKey(entry.content)
+    if (!key) return
+    setEditBusy(true)
+    setEditError(null)
+    try {
+      const r = await authFetch(`/vocab/${encodeURIComponent(key)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ note: editNote, translation: editTranslation }),
+      })
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setVocabulary(prev => prev.map(v =>
+          (v.word || normalizeVocabKey(v.content)) === key
+            ? (d.entry || { ...v, note: editNote, translation: editTranslation })
+            : v
+        ))
+        setEditingKey(null)
+      } else {
+        const d = await r.json().catch(() => ({}))
+        setEditError(d.error || '保存失败，请重试')
+      }
+    } catch {
+      setEditError('网络错误，保存失败')
+    } finally {
+      setEditBusy(false)
+    }
+  }
+
+  // 点来源回到对应视频：句子（有 startTime）直达该句时间；其余回词卡定位
   const openSource = (entry, source) => {
     if (!source?.videoId) return
+    if (source.startTime != null) {
+      navigate(`/video/${source.videoId}?t=${source.startTime}`)
+      return
+    }
     const word = encodeURIComponent(entry.content || entry.word)
     navigate(`/video/${source.videoId}?card=1&word=${word}&type=${entry.type || 'word'}`)
   }
@@ -269,6 +323,47 @@ export default function LearningRecords() {
                           </p>
                         )}
 
+                        {entry.note && editingKey !== key && (
+                          <p className="vocab-card-note">{entry.note}</p>
+                        )}
+
+                        {editingKey === key && (
+                          <div className="vocab-edit-panel" onClick={(e) => e.stopPropagation()}>
+                            <label className="vocab-edit-label">
+                              <span>中文释义</span>
+                              <input
+                                className="vocab-edit-input"
+                                value={editTranslation}
+                                maxLength={300}
+                                onChange={(e) => setEditTranslation(e.target.value)}
+                                placeholder="修改释义（可选）"
+                              />
+                              <span className="vocab-edit-count">{editTranslation.length}/300</span>
+                            </label>
+                            <label className="vocab-edit-label">
+                              <span>笔记</span>
+                              <textarea
+                                className="vocab-edit-textarea"
+                                rows={3}
+                                value={editNote}
+                                maxLength={200}
+                                onChange={(e) => setEditNote(e.target.value)}
+                                placeholder="记下用法、记忆技巧……（200 字以内）"
+                              />
+                              <span className="vocab-edit-count">{editNote.length}/200</span>
+                            </label>
+                            {editError && <p className="vocab-edit-error" role="alert">{editError}</p>}
+                            <div className="vocab-edit-actions">
+                              <button type="button" className="vocab-edit-save" disabled={editBusy} onClick={() => saveEdit(entry)}>
+                                {editBusy ? '保存中…' : '保存'}
+                              </button>
+                              <button type="button" className="vocab-edit-cancel" disabled={editBusy} onClick={cancelEdit}>
+                                取消
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="vocab-card-sources">
                           <span className="vocab-sources-label">来源视频</span>
                           <div className="vocab-source-list">
@@ -307,6 +402,16 @@ export default function LearningRecords() {
                             })()}
                           </span>
                           <div className="vocab-card-actions">
+                            <button
+                              type="button"
+                              className="vocab-edit-btn"
+                              onClick={() => openEdit(entry)}
+                              disabled={editingKey === key}
+                              aria-label="编辑笔记"
+                            >
+                              <Pencil size={14} />
+                              <span>{editingKey === key ? '编辑中' : '编辑'}</span>
+                            </button>
                             <button
                               type="button"
                               className="vocab-practice-btn"
