@@ -7,12 +7,20 @@
 //
 // 纯函数、零依赖。
 
-export const VOCAB_TYPES = ['word', 'phrase', 'core_phrase']
+export const VOCAB_TYPES = ['word', 'phrase', 'core_phrase', 'sentence']
 
 export const VOCAB_TYPE_LABELS = {
   word: '单词',
   phrase: '短语',
-  core_phrase: '核心短语',
+  core_phrase: '句子',
+  sentence: '句子',
+}
+
+// 展示层「句子」分类 = 存储层的 core_phrase（词卡核心短语）+ sentence（字幕收藏句子）
+export const SENTENCE_TYPES = ['core_phrase', 'sentence']
+
+export function isSentenceType(type) {
+  return SENTENCE_TYPES.includes(type)
 }
 
 // 词卡 tab → 生词 type
@@ -90,19 +98,21 @@ export function vocabKeys(vocabulary) {
   return keys
 }
 
-/** 按类型筛选生词（'all' 或空 → 全部）。旧数据无 type 视为 word。 */
+/** 按类型筛选生词（'all' 或空 → 全部；'sentence' → core_phrase + sentence 归并）。 */
 export function filterVocabByType(vocabulary, type) {
   const list = vocabulary || []
   if (!type || type === 'all') return list
+  if (type === 'sentence') return list.filter((v) => isSentenceType(v.type || 'word'))
   return list.filter((v) => (v.type || 'word') === type)
 }
 
-/** 统计各类型数量。 */
+/** 统计各类型数量（sentence 桶 = core_phrase + sentence）。 */
 export function countVocabByType(vocabulary) {
-  const counts = { all: (vocabulary || []).length, word: 0, phrase: 0, core_phrase: 0 }
+  const counts = { all: (vocabulary || []).length, word: 0, phrase: 0, sentence: 0 }
   for (const v of vocabulary || []) {
     const type = v.type || 'word'
-    if (counts[type] != null) counts[type] += 1
+    if (isSentenceType(type)) counts.sentence += 1
+    else if (counts[type] != null) counts[type] += 1
   }
   return counts
 }
