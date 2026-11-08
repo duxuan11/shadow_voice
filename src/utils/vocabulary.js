@@ -19,6 +19,7 @@ export const VOCAB_TYPE_LABELS = {
 // 展示层「句子」分类 = 存储层的 core_phrase（词卡核心短语）+ sentence（字幕收藏句子）
 export const SENTENCE_TYPES = ['core_phrase', 'sentence']
 
+/** 存储类型是否属于展示层「句子」分类（core_phrase 或 sentence）。 */
 export function isSentenceType(type) {
   return SENTENCE_TYPES.includes(type)
 }

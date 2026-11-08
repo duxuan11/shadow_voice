@@ -211,18 +211,22 @@ router.delete('/:word', authMiddleware, async (req, res) => {
 
   const videoId = req.query.videoId
   if (videoId) {
-    const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
-    if (!existing) return res.json({ ok: true })
-    const sources = parseSources(existing).filter(s => s.videoId !== videoId)
-    if (sources.length === 0) {
-      run('DELETE FROM vocabulary WHERE id = ?', [existing.id])
-    } else {
-      run(
-        'UPDATE vocabulary SET sources = ?, video_id = ?, video_title = ? WHERE id = ?',
-        [JSON.stringify(sources), sources[0].videoId || null, sources[0].videoTitle || null, existing.id]
-      )
+    try {
+      const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
+      if (!existing) return res.json({ ok: true })
+      const sources = parseSources(existing).filter(s => s.videoId !== videoId)
+      if (sources.length === 0) {
+        run('DELETE FROM vocabulary WHERE id = ?', [existing.id])
+      } else {
+        run(
+          'UPDATE vocabulary SET sources = ?, video_id = ?, video_title = ? WHERE id = ?',
+          [JSON.stringify(sources), sources[0].videoId || null, sources[0].videoTitle || null, existing.id]
+        )
+      }
+      return res.json({ ok: true })
+    } catch {
+      return res.status(500).json({ error: '移除失败' })
     }
-    return res.json({ ok: true })
   }
 
   run('DELETE FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])

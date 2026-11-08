@@ -123,7 +123,8 @@ export default function VideoDetail() {
   const viewRecordedRef = useRef(null)
   const notifyTimerRef = useRef(null)
   const deepLinkDoneRef = useRef(false)
-  const deepSeekDoneRef = useRef(false) // ?t= 深链只跳转一次
+  // ?t= 深链一次性 seek 守卫：记录已处理过的视频 id，切视频后可再次生效
+  const tSeekDoneRef = useRef(null)
   const singleSentenceLockRef = useRef(null) // 单句播放时锁定当前句，防止句末边界自动跳到下一句
 
   // ── Data loading ──
@@ -180,7 +181,8 @@ export default function VideoDetail() {
   useEffect(() => {
     if (isGuest || !id) return
     const params = new URLSearchParams(window.location.search)
-    if (params.get('t')) return // ?t= 深链优先：由 handleLoadedMetadata 处理，跳过进度续播
+    const tRaw = params.get('t')
+    if (tRaw != null && Number.isFinite(parseFloat(tRaw))) return // ?t= 深链优先：由 handleLoadedMetadata 处理，跳过进度续播
     authFetch(`/progress/${id}`).then(r => r.json()).then(d => {
       if (d.progress && !d.progress.completed && d.progress.currentTime > 5) {
         // Resume from last position after video metadata loads
@@ -391,8 +393,8 @@ export default function VideoDetail() {
     // ?t= 深链：跳到指定时间（生词本句子来源跳转）
     const params = new URLSearchParams(window.location.search)
     const tParam = parseFloat(params.get('t') || '')
-    if (Number.isFinite(tParam) && !deepSeekDoneRef.current) {
-      deepSeekDoneRef.current = true
+    if (Number.isFinite(tParam) && tSeekDoneRef.current !== id) {
+      tSeekDoneRef.current = id
       vid.currentTime = tParam
       setCurrentTime(tParam)
       return

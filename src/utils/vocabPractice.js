@@ -29,7 +29,7 @@ export function shuffle(list, rand = Math.random) {
 /**
  * 组装本轮题目队列。
  * - 传 word：单条成轮（按规范化 key 匹配，忽略大小写/标点）。
- * - 否则按 type 筛选后洗牌；type 为 'all' 或空 → 全部。
+ * - 否则按 type 筛选后洗牌；type 为 'all' 或空 → 全部；'sentence' → core_phrase 与 sentence 归并。
  */
 export function buildPracticeQueue(vocabulary, { type = 'all', word = '' } = {}) {
   const list = vocabulary || []

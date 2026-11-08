@@ -288,6 +288,20 @@ test('PATCH：笔记超 200 字 → 400', async () => {
   assert.equal(status, 400)
 })
 
+test('PATCH：笔记恰好 200 字 → 通过', async () => {
+  await add({ content: 'notemax', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  const { status, body } = await patch('notemax', { note: '字'.repeat(200) })
+  assert.equal(status, 200)
+  assert.equal(body.entry.note.length, 200)
+})
+
+test('PATCH：释义恰好 300 字 → 通过', async () => {
+  await add({ content: 'trmax', type: 'word', videoId: 'pv', videoTitle: 'P' })
+  const { status, body } = await patch('trmax', { translation: '译'.repeat(300) })
+  assert.equal(status, 200)
+  assert.equal(body.entry.translation.length, 300)
+})
+
 test('PATCH：释义超 300 字 → 400', async () => {
   await add({ content: 'longtr', type: 'word', videoId: 'pv', videoTitle: 'P' })
   const { status } = await patch('longtr', { translation: '译'.repeat(301) })

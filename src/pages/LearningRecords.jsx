@@ -121,6 +121,7 @@ export default function LearningRecords() {
   }
 
   const openEdit = (entry) => {
+    if (editBusy) return // 保存进行中不允许切换编辑目标，避免竞态
     const key = entry.word || normalizeVocabKey(entry.content)
     if (!key) return
     setEditingKey(key)
@@ -351,7 +352,7 @@ export default function LearningRecords() {
                               />
                               <span className="vocab-edit-count">{editNote.length}/200</span>
                             </label>
-                            {editError && <p className="vocab-edit-error">{editError}</p>}
+                            {editError && <p className="vocab-edit-error" role="alert">{editError}</p>}
                             <div className="vocab-edit-actions">
                               <button type="button" className="vocab-edit-save" disabled={editBusy} onClick={() => saveEdit(entry)}>
                                 {editBusy ? '保存中…' : '保存'}

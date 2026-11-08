@@ -96,7 +96,7 @@ test('filterVocabByType / countVocabByType', () => {
   assert.deepEqual(countVocabByType(vocab), { all: 5, word: 3, phrase: 1, sentence: 1 })
 })
 
-test('VOCAB_TYPE_LABELS：三种类型都有中文标签', () => {
+test('VOCAB_TYPE_LABELS：四种类型都有中文标签', () => {
   assert.equal(VOCAB_TYPE_LABELS.word, '单词')
   assert.equal(VOCAB_TYPE_LABELS.phrase, '短语')
   assert.equal(VOCAB_TYPE_LABELS.core_phrase, '句子')
