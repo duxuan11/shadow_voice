@@ -337,6 +337,14 @@ test('DELETE ?videoId=：来源不存在 → 条目不动', async () => {
   assert.equal(body.vocabulary.find(v => v.word === 'keep word').sources.length, 1)
 })
 
+test('DELETE ?videoId=（空串）→ 400 且条目不动', async () => {
+  await add({ content: 'empty-vid', type: 'word', videoId: 'e1', videoTitle: 'E' })
+  const res = await fetch(`${baseUrl}/api/vocab/empty-vid?videoId=`, { method: 'DELETE', headers: authHeaders() })
+  assert.equal(res.status, 400)
+  const { body } = await list()
+  assert.ok(body.vocabulary.some(v => v.word === 'empty vid'))
+})
+
 test('DELETE ?videoId=：无 sources 的老数据走兜底合成来源', async () => {
   // 直接造一条无 sources JSON 的老数据行
   const { getDb, run } = require('../db.cjs')

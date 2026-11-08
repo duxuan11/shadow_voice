@@ -209,8 +209,9 @@ router.delete('/:word', authMiddleware, async (req, res) => {
   const key = normalizeKey(req.params.word)
   if (!key) return res.status(400).json({ error: '无效内容' })
 
-  const videoId = req.query.videoId
-  if (videoId) {
+  const videoId = typeof req.query.videoId === 'string' ? req.query.videoId : undefined
+  if (videoId !== undefined) {
+    if (!videoId) return res.status(400).json({ error: 'videoId 无效' })
     try {
       const existing = get('SELECT * FROM vocabulary WHERE user_id = ? AND word = ?', [req.userId, key])
       if (!existing) return res.json({ ok: true })

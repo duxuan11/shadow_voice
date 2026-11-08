@@ -3644,6 +3644,7 @@
 .vocab-type-badge.type-word { background: #eef2ff; color: #4338ca; }
 .vocab-type-badge.type-phrase { background: #ecfeff; color: #0e7490; }
 .vocab-type-badge.type-core_phrase { background: #fef3c7; color: #92400e; }
+.vocab-type-badge.type-sentence { background: #fce7f3; color: #9d174d; }
 
 .vocab-card-sources { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .vocab-sources-label { font-size: 11px; font-weight: 700; color: #9ca3af; }
