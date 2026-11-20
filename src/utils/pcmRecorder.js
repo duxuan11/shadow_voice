@@ -45,13 +45,8 @@ export async function createPcmRecorder() {
     gain.connect(ctx.destination) // 静音链：保持 onaudioprocess 被拉取但不发声
   }
 
-  const stop = async () => {
-    if (stopped) return
-    stopped = true
-    try { source.disconnect(); processor.disconnect(); gain.disconnect() } catch { /* ignore */ }
-    stream.getTracks().forEach(t => t.stop())
-    await ctx.close().catch(() => {})
-    // Float32 → Int16 LE
+  // Float32 → Int16 LE，并清空缓冲（清空是为了 keepStream 模式下继续录下一段）
+  const takeBuffer = () => {
     const n = floatBuf.length
     const buf = new ArrayBuffer(n * 2)
     const view = new DataView(buf)
@@ -60,7 +55,19 @@ export async function createPcmRecorder() {
       s = Math.max(-1, Math.min(1, s))
       view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true)
     }
+    floatBuf.length = 0
     return buf
+  }
+
+  // keepStream: true = 只取走已录的部分，麦克风与 AudioContext 保持存活（60 秒分段录音用）
+  const stop = async ({ keepStream = false } = {}) => {
+    if (stopped) return takeBuffer()
+    if (keepStream) return takeBuffer()
+    stopped = true
+    try { source.disconnect(); processor.disconnect(); gain.disconnect() } catch { /* ignore */ }
+    stream.getTracks().forEach(t => t.stop())
+    await ctx.close().catch(() => {})
+    return takeBuffer()
   }
 
   return {

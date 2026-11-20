@@ -24,12 +24,10 @@ export function createSpeechInput() {
   let onError = null
   let onEnd = null
   let active = false
-  let delivered = false
 
   rec.onresult = (e) => {
     const text = e.results?.[0]?.[0]?.transcript || ''
     if (text && onFinal) {
-      delivered = true
       onFinal(text.trim())
     }
   }
@@ -49,7 +47,8 @@ export function createSpeechInput() {
   }
   rec.onend = () => {
     active = false
-    if (!delivered && onEnd) onEnd()
+    // 一律通知结束：即使这一轮已经交付了文本，分段录音还要靠它续识
+    if (onEnd) onEnd()
   }
   return {
     ok: true,
@@ -58,7 +57,6 @@ export function createSpeechInput() {
       onFinal = cb
       onError = errCb
       onEnd = endCb
-      delivered = false
       try {
         rec.start()
         active = true

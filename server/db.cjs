@@ -163,6 +163,47 @@ function initSchema() {
     updated_at       TEXT DEFAULT (datetime('now'))
   )`)
 
+  // 每日口语挑战：一套挑战的静态内容（同一 user+video 可有多套，variant 递增）
+  db.run(`CREATE TABLE IF NOT EXISTS speaking_challenges (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id       TEXT NOT NULL,
+    variant        INTEGER NOT NULL DEFAULT 1,
+    challenge_json TEXT NOT NULL,
+    model          TEXT,
+    created_at     TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id, variant)
+  )`)
+
+  // 每日口语挑战：每套挑战一份进度（cursor 0-4 当前步，5 表示待/已出报告；steps_json 长度 5）
+  db.run(`CREATE TABLE IF NOT EXISTS speaking_challenge_progress (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    challenge_id INTEGER NOT NULL UNIQUE REFERENCES speaking_challenges(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cursor       INTEGER NOT NULL DEFAULT 0,
+    status       TEXT NOT NULL DEFAULT 'active',
+    steps_json   TEXT NOT NULL DEFAULT '[]',
+    report_json  TEXT,
+    updated_at   TEXT DEFAULT (datetime('now'))
+  )`)
+
+  // 语块掌握状态：按 user+video+语块 长期累积；used_steps 记录哪些训练步成功用过它
+  // （去重，避免同一步重复提交把 uses_count 刷高）。uses_count = used_steps 长度。
+  db.run(`CREATE TABLE IF NOT EXISTS chunk_mastery (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    video_id    TEXT NOT NULL,
+    chunk_key   TEXT NOT NULL,
+    chunk_en    TEXT NOT NULL,
+    chunk_cn    TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'introduced',
+    uses_count  INTEGER NOT NULL DEFAULT 0,
+    used_steps  TEXT NOT NULL DEFAULT '[]',
+    last_score  INTEGER,
+    updated_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, video_id, chunk_key)
+  )`)
+
   // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
   // 新增：场景档案列（视频 → AI Role Play）

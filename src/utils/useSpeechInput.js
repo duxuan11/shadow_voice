@@ -2,16 +2,20 @@
 // 只负责「拿到识别文本」，不碰评分。用法：
 //   const speech = useSpeechInput(authFetch)
 //   speech.start(text => setUserText(text)); speech.stop()
+// 分段模式（话题连续表达用）：
+//   useSpeechInput(authFetch, { segmented: true, onSegmentEnd: (text) => {...} })
+//   —— 每段识别结果走 onSegmentEnd，麦克风在段间不断（阿里云）或自动续识（Web Speech）。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createAsrSpeechInput } from './aliyunAsr'
 import { createSpeechInput } from './recallSpeech'
 import { selectSpeechSource } from './speechSource'
+import { shouldRestartSegment } from './speechSegments'
 
 function hasWebSpeech() {
   return typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 }
 
-export function useSpeechInput(authFetch) {
+export function useSpeechInput(authFetch, { segmented = false, onSegmentEnd } = {}) {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState(null)
   const [source, setSource] = useState(null)
@@ -19,6 +23,11 @@ export function useSpeechInput(authFetch) {
   const sourceRef = useRef(null)
   const listeningRef = useRef(false)
   const startingRef = useRef(false)
+  const segmentedRef = useRef(segmented)
+  const onSegmentRef = useRef(onSegmentEnd)
+
+  useEffect(() => { segmentedRef.current = segmented }, [segmented])
+  useEffect(() => { onSegmentRef.current = onSegmentEnd }, [onSegmentEnd])
 
   const setActive = useCallback((active) => {
     listeningRef.current = active
@@ -42,7 +51,7 @@ export function useSpeechInput(authFetch) {
     }
 
     if (picked === 'aliyun') {
-      const s = await createAsrSpeechInput(authFetch)
+      const s = await createAsrSpeechInput(authFetch, { keepStream: segmentedRef.current })
       if (s.ok) {
         sourceRef.current = 'aliyun'
         return s
@@ -58,6 +67,36 @@ export function useSpeechInput(authFetch) {
     sourceRef.current = 'web'
     return w
   }, [authFetch])
+
+  // 绑定识别回调：分段模式下每段走 onSegmentEnd，Web Speech 静音自动结束后自动续识
+  const bindCallbacks = useCallback((onText) => {
+    const handleFinal = (text) => {
+      if (segmentedRef.current) {
+        onSegmentRef.current?.(text)
+        return
+      }
+      setActive(false)
+      onText?.(text)
+    }
+    const handleError = (err) => {
+      setActive(false)
+      setError(err)
+    }
+    const handleEnd = () => {
+      if (shouldRestartSegment({
+        segmented: segmentedRef.current,
+        source: sourceRef.current,
+        listening: listeningRef.current,
+      })) {
+        try {
+          speechRef.current?.start(handleFinal, handleError, handleEnd)
+          return
+        } catch { /* 续识失败按结束处理 */ }
+      }
+      setActive(false)
+    }
+    speechRef.current?.start(handleFinal, handleError, handleEnd)
+  }, [setActive])
 
   const start = useCallback(async (onText) => {
     if (listeningRef.current) {
@@ -80,18 +119,14 @@ export function useSpeechInput(authFetch) {
         setSource(sourceRef.current)
       }
       setActive(true)
-      speechRef.current.start(
-        (text) => { setActive(false); onText?.(text) },
-        (err) => { setActive(false); setError(err) },
-        () => setActive(false),
-      )
+      bindCallbacks(onText)
     } catch {
       setActive(false)
       setError('语音输入启动失败，请直接输入英文')
     } finally {
       startingRef.current = false
     }
-  }, [buildSpeech, setActive, stop])
+  }, [buildSpeech, bindCallbacks, setActive, stop])
 
   useEffect(() => () => { try { speechRef.current?.stop() } catch { /* ignore */ } }, [])
 
