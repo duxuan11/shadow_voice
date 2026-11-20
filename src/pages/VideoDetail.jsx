@@ -885,7 +885,7 @@ export default function VideoDetail() {
           )}
           <div className="relative shrink-0 ml-2">
             <button
-              onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/conversation` } }); else setShowSpeakMenu(v => !v) }}
+              onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/challenge` } }); else setShowSpeakMenu(v => !v) }}
               className="flex items-center justify-center w-9 h-9 bg-indigo-600 text-white rounded-lg active:scale-95"
               title="AI 对话"
             >
@@ -893,8 +893,8 @@ export default function VideoDetail() {
             </button>
             {showSpeakMenu && (
               <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 min-w-[190px]" onClick={e => e.stopPropagation()}>
-                <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/conversation`) }}
-                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
+                <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/challenge`) }}
+                  className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🎯 每日口语挑战</button>
                 <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
                   className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
                 <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/dialogue`) }}
@@ -1247,15 +1247,15 @@ export default function VideoDetail() {
               </button>
               <div className="relative">
                 <button
-                  onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/conversation` } }); else setShowSpeakMenu(v => !v) }}
+                  onClick={(e) => { e.stopPropagation(); if (isGuest) navigate('/login', { state: { from: `/video/${id}/challenge` } }); else setShowSpeakMenu(v => !v) }}
                   className="flex items-center space-x-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
                 >
                   <MessageCircle className="h-3.5 w-3.5" /><span>💬 AI 对话</span>
                 </button>
                 {showSpeakMenu && (
                   <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 min-w-[190px]" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/conversation`) }}
-                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">💬 多轮对话</button>
+                    <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/challenge`) }}
+                      className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🎯 每日口语挑战</button>
                     <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/speak`) }}
                       className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">🗣 自由表达 · 看中文说英文</button>
                     <button onClick={() => { setShowSpeakMenu(false); navigate(`/video/${id}/dialogue`) }}

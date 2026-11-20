@@ -71,6 +71,17 @@ Shadow Voice 是一个全栈英语学习应用，提供 **214 个真实英语视
 - **续练**：进度与逐句答题记录存服务端，退出再进可继续，也可「重新开始」；练完展示均分 / 一次通过率 / 常见错误 / 需要复习的表达
 - **降级**：无字幕时只依据视频标题/简介/难度生成并标注「无字幕」，不编造情节；语音走阿里云 ASR → 浏览器识别 → 手打兜底；AI 未配置或调用失败明确提示，不伪造剧本或分数
 
+### 🎯 每日口语挑战（Daily Speaking Challenge）
+- **入口**：视频详情页点「💬 AI 对话」→ 选「🎯 每日口语挑战」（登录用户可用，游客引导登录）
+- **玩法**：AI 依据该视频的字幕一次性生成一套五步挑战 —— ① Video Recall（3 个复述题，不看字幕说内容）② Chunk Activation（5 个语块，看中文先说英文再造句）③ Sentence Transformation（5 个中文情境，用英语表达但不许照抄原句）④ Topic Speaking（围绕话题连续说 60–120 秒）⑤ AI Conversation（就话题聊 5–8 轮，AI 动态追问）
+- **反馈**：每步提交后给语法修正、更地道的说法、语块使用情况、词汇丰富度、连贯性点评；先自己说，再看优化版，不直接甩标准答案
+- **报告**：本次掌握 / 能自主使用 / 需要复习 / 本次新引入四堆语块 + 最长连续表达时长 + 下次训练建议
+- **语块掌握**：按「用户 + 视频 + 语块」长期累计（`introduced → activated → mastered`，用错回 `review`），同一视频再练不同的挑战也共享进度
+- **重新生成 / 重练 / 历史**：同一视频可生成多套不同挑战（会避开最近用过的语块与情境），历史版本可回看；「再练一次」只清进度、不清掌握状态
+- **依据**：每个语块都必须在视频字幕里找到原句（字幕取证），凑不够就降级到字幕衍生的兜底池，绝不凭空编造；无字幕视频直接提示不支持
+- **成本**：生成 1–2 次调用、每步反馈 1 次、对话每轮 1 次、收尾报告 1 次；**进入页面 0 次调用**
+- **降级**：AI 未配置/调用失败时答案先落库、明确提示可重试；流利度只报可测量的（时长、段数、语速），不伪造发音分
+
 ### 📊 学习记录
 - **观看历史**：最近看过的 50 个视频（登录用户存服务端，手机/电脑互通；游客仅存本机）
 - **生词本**：视频词卡里的单词 / 短语 / 核心短语都能收藏；同一内容跨视频去重为一条并保留多个来源视频，可按类型筛选、点击来源回到对应视频词卡、触屏可移除
@@ -152,6 +163,7 @@ npm run build
 | `/video/:id/dictation` | 听写模式 |
 | `/video/:id/speak` | 自由表达（看中文说英文） |
 | `/video/:id/dialogue` | 中译英口语对话（整组对话逐句翻译） |
+| `/video/:id/challenge` | 每日口语挑战（五步主动口语训练 + 报告） |
 | `/records` | 学习记录 |
 | `/vocab/practice` | 生词听练（支持 `?word=&type=` 单条成轮） |
 
@@ -260,11 +272,6 @@ shadow_voice/
 | POST | `/api/history/:videoId` | 记录一次观看 | ✅ |
 | POST | `/api/history/merge` | 合并本机旧观看历史到账号 | ✅ |
 | DELETE | `/api/history` | 清空观看历史 | ✅ |
-| POST | `/api/conversation/start` | 开始 AI 对话会话 | ✅ |
-| GET | `/api/conversation/recent` | 最近的对话会话 | ✅ |
-| POST | `/api/conversation/:sessionId/reply` | 发送对话消息 | ✅ |
-| POST | `/api/conversation/:sessionId/review` | 生成会话回顾 | ✅ |
-| GET | `/api/conversation/:sessionId` | 获取会话详情 | ✅ |
 | POST | `/api/aliyun/authorize` | 阿里云口语评测授权 | ✅ |
 | GET | `/api/tts/status` | TTS 服务状态 | ✅ |
 | POST | `/api/tts/synthesize` | 文本转语音 | ✅ |
@@ -276,6 +283,13 @@ shadow_voice/
 | POST | `/api/dialogue/:scriptId/evaluate` | 中译英对话：单句评估 | ✅ |
 | PUT | `/api/dialogue/:scriptId/progress` | 中译英对话：推进进度 | ✅ |
 | POST | `/api/dialogue/:scriptId/restart` | 中译英对话：重新开始 | ✅ |
+| GET | `/api/challenge/:videoId` | 口语挑战：挑战 + 进度 + 历史 + 语块掌握（`?variant=` 取历史版本） | ✅ |
+| POST | `/api/challenge/:videoId/generate` | 口语挑战：生成新一套（variant+1） | ✅ |
+| POST | `/api/challenge/:challengeId/step/:step` | 口语挑战：提交第 1–4 步作答并拿反馈 | ✅ |
+| POST | `/api/challenge/:challengeId/chat` | 口语挑战：第 5 步 AI 对话一轮（空 body 取开场白） | ✅ |
+| POST | `/api/challenge/:challengeId/finish` | 口语挑战：收尾 + 最终报告 | ✅ |
+| PUT | `/api/challenge/:challengeId/progress` | 口语挑战：推进进度 | ✅ |
+| POST | `/api/challenge/:challengeId/restart` | 口语挑战：重练同一套 | ✅ |
 | GET | `/api/health` | 健康检查（校验数据库连通性） | ❌ |
 
 ---
@@ -285,6 +299,7 @@ shadow_voice/
 - 前端开发：`npm run dev`（Vite 热更新）
 - 后端开发：`npm run server`（nodemon 未配置，需要手动重启）
 - 代码检查：`npm run lint`
+- 口语挑战端到端校验：`SV_TOKEN=<jwt> node scripts/verify-speaking-challenge.mjs`（自带假 AI，需后端以 `AI_API_KEY=test AI_BASE_URL=http://127.0.0.1:3999/v1 npm run server` 启动；配 `APP_URL` + `CDP_URL` 时额外校验页面）
 - 生成/刷新智能词卡：`npm run wordcards`（需 `.env` 配好 `AI_API_KEY`）
 - 生成/刷新英文音标表：`npm run phonetics`（读取 DATA_DIR 下的词卡/字幕词表，用 `ipa-dict` 生成 `src/data/phonetics.js`；结果已提交仓库，前端无运行时依赖）
   - `npm run wordcards -- --force` 全量重新生成（默认跳过已有的）

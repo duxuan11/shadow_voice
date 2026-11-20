@@ -79,3 +79,39 @@ test('dialogue_scripts / dialogue_progress 存在且唯一约束生效', async (
   assert.throws(() => db.run('INSERT INTO dialogue_progress (script_id, user_id) VALUES (?,?)',
     [s.lastInsertRowid, 1]), /UNIQUE/)
 })
+
+test('speaking_challenges / speaking_challenge_progress / chunk_mastery 存在且约束生效', async () => {
+  await db.getDb()
+  const names = db.all("SELECT name FROM sqlite_master WHERE type='table'").map(r => r.name)
+  for (const t of ['speaking_challenges', 'speaking_challenge_progress', 'chunk_mastery']) {
+    assert.ok(names.includes(t), `缺少表 ${t}`)
+  }
+
+  const c = db.run(
+    'INSERT INTO speaking_challenges (user_id, video_id, variant, challenge_json) VALUES (?,?,?,?)',
+    [1, 'video-a', 1, '{"version":1}']
+  )
+  assert.equal(db.get('SELECT variant FROM speaking_challenges WHERE id=?', [c.lastInsertRowid]).variant, 1)
+  assert.throws(() => db.run(
+    'INSERT INTO speaking_challenges (user_id, video_id, variant, challenge_json) VALUES (?,?,?,?)',
+    [1, 'video-a', 1, '{}']), /UNIQUE/)
+
+  const p = db.run('INSERT INTO speaking_challenge_progress (challenge_id, user_id) VALUES (?,?)',
+    [c.lastInsertRowid, 1])
+  const prow = db.get('SELECT * FROM speaking_challenge_progress WHERE id=?', [p.lastInsertRowid])
+  assert.equal(prow.cursor, 0)
+  assert.equal(prow.status, 'active')
+  assert.equal(prow.steps_json, '[]')
+  assert.throws(() => db.run('INSERT INTO speaking_challenge_progress (challenge_id, user_id) VALUES (?,?)',
+    [c.lastInsertRowid, 1]), /UNIQUE/)
+
+  db.run('INSERT INTO chunk_mastery (user_id, video_id, chunk_key, chunk_en, chunk_cn) VALUES (?,?,?,?,?)',
+    [1, 'video-a', 'check in', 'check in', '办理入住'])
+  const m = db.get('SELECT * FROM chunk_mastery WHERE chunk_key=?', ['check in'])
+  assert.equal(m.status, 'introduced')
+  assert.equal(m.uses_count, 0)
+  assert.equal(m.used_steps, '[]')
+  assert.throws(() => db.run(
+    'INSERT INTO chunk_mastery (user_id, video_id, chunk_key, chunk_en, chunk_cn) VALUES (?,?,?,?,?)',
+    [1, 'video-a', 'check in', 'check in', '办理入住']), /UNIQUE/)
+})
