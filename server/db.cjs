@@ -204,6 +204,26 @@ function initSchema() {
     UNIQUE(user_id, video_id, chunk_key)
   )`)
 
+  // 跟读评测原始样本（dry-run）：用于 30 天后标定发音诊断阈值。
+  // 不存 audioUrl（阿里云录音 1 个月失效 + 语音存储合规），写入后保留 30 天。
+  db.run(`CREATE TABLE IF NOT EXISTS shadow_eval_samples (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    video_id    TEXT,
+    sub_index   INTEGER,
+    ref_text    TEXT,
+    accent      TEXT,
+    eval_accent TEXT,
+    overall     REAL,
+    accuracy    REAL,
+    integrity   REAL,
+    params      TEXT,
+    result      TEXT,
+    diagnosis   TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
+  )`)
+  db.run('CREATE INDEX IF NOT EXISTS idx_shadow_eval_created ON shadow_eval_samples(created_at)')
+
   // 旧库迁移：已有 conversation_sessions 表缺少 review_json 列（CREATE IF NOT EXISTS 不会补列）
   ensureColumn('conversation_sessions', 'review_json', 'TEXT')
   // 新增：场景档案列（视频 → AI Role Play）
