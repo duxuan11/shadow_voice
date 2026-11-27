@@ -998,7 +998,7 @@ export default function VideoDetail() {
                   )}
                 </div>
                 {currentSub ? (
-                  <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
+                  <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} accent={video?.accent} videoId={video?.id} subIndex={activeSubIndex} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
                 ) : (
                   <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                 )}
@@ -1417,7 +1417,7 @@ export default function VideoDetail() {
                           )}
                         </div>
                         {currentSub ? (
-                          <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
+                          <ShadowingEvaluator key={currentSub.id} refText={currentSub.textEn} accent={video?.accent} videoId={video?.id} subIndex={activeSubIndex} onPracticed={() => recordPractice('shadow', activeSubIndex)} />
                         ) : (
                           <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
                         )}

@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '../context/auth-context'
 import { parseResult } from '../utils/aliyunResult'
+import { diagnose } from '../utils/pronunciationDiagnosis'
+import { accentToEvalParam } from '../utils/accentParam'
 import { buildEngineSdkUrl, analyzeEngineSdkBody, micEnvironmentProblem, jssdkNotSupportMessage } from '../utils/engineSdk'
 import { Mic, Square, Loader2, Volume2, ChevronDown } from 'lucide-react'
 
@@ -48,6 +50,53 @@ function loadEngineJs() {
 }
 
 const SPEED_LABEL = { 0: '偏慢', 1: '正常', 2: '偏快' }
+// 诊断为空时的稳定返回值（每次新建，避免下游误改共享对象）
+const emptyDiagnosis = () => ({ items: [], top: null, stats: { boundaries: 0, problematic: 0 } })
+// 诊断抛错不能影响出分：失败即退化成「没有新标注」
+function diagnoseSafely(parsed, refText) {
+  try {
+    return diagnose(parsed, { refText })
+  } catch {
+    return emptyDiagnosis()
+  }
+}
+const LEVEL_STYLE = {
+  error: 'text-rose-600 bg-rose-50 border-rose-100',
+  suggestion: 'text-amber-600 bg-amber-50 border-amber-100',
+  hint: 'text-slate-600 bg-slate-50 border-slate-200',
+}
+const LEVEL_BADGE = {
+  'coda-loss': ['尾音丢失', 'text-rose-600 bg-rose-100'],
+  'link-missing': ['连读', 'text-amber-600 bg-amber-100'],
+  'stop-elision': ['吞音·正常', 'text-slate-500 bg-slate-100'],
+}
+
+// dry-run 样本上报：fire-and-forget，失败静默（绝不影响出分，不 setState）
+// 体积上限：服务端 express.json() 默认 100kb，超过会被 413 拦在路由前，
+// 所以这里先自行截断（>90KB 直接不报，避免白白发一个注定失败的请求）。
+const MAX_SAMPLE_BYTES = 90000
+function reportSample({ authFetch, raw, parsed, diagnosis, refText, accent, evalAccent, params, videoId, subIndex }) {
+  try {
+    const bodyStr = JSON.stringify({
+        videoId: videoId ?? null,
+        subIndex: typeof subIndex === 'number' ? subIndex : null,
+        refText: refText ?? '',
+        accent: accent ?? null,
+        evalAccent: evalAccent ?? null,
+        overall: parsed?.overall ?? null,
+        accuracy: parsed?.accuracy ?? null,
+        integrity: parsed?.integrity ?? null,
+        params: params ?? null,
+        result: raw ?? null,
+        diagnosis: diagnosis ?? null,
+      })
+    if (bodyStr.length > MAX_SAMPLE_BYTES) return
+    const p = authFetch('/shadow-eval/samples', { method: 'POST', body: bodyStr })
+    if (p && typeof p.catch === 'function') p.catch(() => {})
+  } catch {
+    /* 静默：上报失败不影响本地结果 */
+  }
+}
 const TIP_MESSAGES = {
   10004: '音量偏低，可能离麦克风太远，建议靠近一些重试',
   10005: '音频截幅（音量过高），建议离麦克风远一些重试',
@@ -72,10 +121,11 @@ function wordColor(score) {
   return 'text-rose-600 bg-rose-50 underline decoration-wavy'
 }
 
-export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
+export default function ShadowingEvaluator({ refText, accent, videoId, subIndex, onPracticed, onResult }) {
   const { authFetch, user } = useAuth()
   const [phase, setPhase] = useState('ready') // ready | recording | evaluating | result | error
   const [result, setResult] = useState(null)
+  const [diagnosis, setDiagnosis] = useState(emptyDiagnosis)
   const [error, setError] = useState(null)
   const [volume, setVolume] = useState(0)
   const [seconds, setSeconds] = useState(0)
@@ -83,6 +133,14 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
   const [micWaiting, setMicWaiting] = useState(false)
 
   const engineRef = useRef(null)
+  // 回调（engine 只创建一次，闭包会变旧）读取的最新上下文。
+  // 在 effect 里写 ref（render 期间写 ref 会被 react-hooks/refs 规则拦截）。
+  const ctxRef = useRef({ refText, accent, authFetch, videoId, subIndex })
+  useEffect(() => {
+    ctxRef.current = { refText, accent, authFetch, videoId, subIndex }
+  }, [refText, accent, authFetch, videoId, subIndex])
+  // startRecord 实际下发的参数（上报样本用）
+  const lastParamsRef = useRef(null)
   const initRef = useRef({ done: false, resolvers: [] })
   // { promise, resolve, reject }：engine 初始化时 getUserMedia 的 stream 就绪信号。
   // engine.js 的 engineFirstInitDone 先于 getUserMedia 完成触发，移动端慢速授权时
@@ -154,8 +212,19 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
         try {
           clearTimers()
           const parsed = parseResult(msg)
+          const ctx = ctxRef.current
+          const diag = diagnoseSafely(parsed, ctx.refText)
           setResult(parsed)
+          setDiagnosis(diag)
           setPhaseSafe('result')
+          // dry-run：把云端原始返回落库（不含 audioUrl），失败静默
+          let raw = null
+          try { raw = typeof msg === 'string' ? JSON.parse(msg) : msg } catch { raw = null }
+          reportSample({
+            authFetch: ctx.authFetch, raw, parsed, diagnosis: diag,
+            refText: ctx.refText, accent: ctx.accent, evalAccent: accentToEvalParam(ctx.accent),
+            params: lastParamsRef.current, videoId: ctx.videoId, subIndex: ctx.subIndex,
+          })
           // 可选回调：文本练习用它把每句最佳分落库；不传则行为与原来完全一致
           onResult?.(parsed)
         } catch {
@@ -198,6 +267,7 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
     busyRef.current = true
     setError(null)
     setResult(null)
+    setDiagnosis(emptyDiagnosis())
     setExpandedWord(null)
     try {
       // 环境预检：明文 HTTP（非 localhost）下手机浏览器无 getUserMedia，
@@ -225,7 +295,8 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
       timerRef.current = setTimeout(() => { if (engineRef.current) { engineRef.current.stopRecord(); setPhaseSafe('evaluating') } onPracticed?.() }, MAX_RECORD_MS)
       busyRef.current = false
       try {
-        engine.startRecord({
+        const evalAccent = accentToEvalParam(accent)
+        const params = {
           coreType: 'en.sent.score',
           refText,
           warrantId: warrantRef.current.warrantId,
@@ -235,7 +306,11 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
           outputPhones: 1,     // 音素级得分
           phdet: 1,            // 音素检错
           attachAudioUrl: 1,   // 返回录音地址供回放
-        })
+          // 按视频口音评测（实测会整体改变分数，故只在能识别口音时传）
+          ...(evalAccent ? { accent: evalAccent } : {}),
+        }
+        lastParamsRef.current = params
+        engine.startRecord(params)
       } catch (e) {
         busyRef.current = false
         clearTimers()
@@ -254,7 +329,7 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
       setPhaseSafe('error')
       setError(e.message || '启动评测失败')
     }
-  }, [clearTimers, getWarrant, ensureEngine, waitInit, refText, setPhaseSafe, onPracticed])
+  }, [clearTimers, getWarrant, ensureEngine, waitInit, refText, accent, setPhaseSafe, onPracticed])
 
   // ── 停止评测 ──
   const stop = useCallback(() => {
@@ -272,6 +347,7 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
     setPhase('ready')
     setError(null)
     setResult(null)
+    setDiagnosis(emptyDiagnosis())
     setVolume(0)
   }, [clearTimers])
 
@@ -294,6 +370,12 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
   }, [])
 
   // ── 渲染 ──
+  const diagnosisByWord = useMemo(() => {
+    const map = {}
+    for (const item of diagnosis.items) map[item.wordIndex] = item
+    return map
+  }, [diagnosis])
+
   if (!refText) {
     return <div className="text-center py-8 text-xs text-slate-400 italic">请选择具体句子以开始评测</div>
   }
@@ -358,20 +440,31 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
             </p>
           )}
 
-          {/* 总分 + 五维条 */}
+          {/* 总分 + 维度条 */}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">评测得分</span>
             <span className="text-sm font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full font-mono">
               {result.overall != null ? `${Math.round(result.overall)}分` : '—'}
             </span>
           </div>
+
+          {/* 优先改进：只给一条，点击定位到词 */}
+          {diagnosis.top && (
+            <button
+              onClick={() => setExpandedWord(expandedWord === diagnosis.top.wordIndex ? null : diagnosis.top.wordIndex)}
+              className={`w-full text-left text-[11px] font-semibold border rounded-lg px-2.5 py-2 cursor-pointer transition-all hover:brightness-[0.98] ${LEVEL_STYLE[diagnosis.top.level] || LEVEL_STYLE.hint}`}
+            >
+              <span className="mr-1">优先改进</span>
+              {diagnosis.top.message}
+            </button>
+          )}
+
           <div className="space-y-1.5">
             {[
               ['准确度', result.accuracy],
               ['流利度', result.fluency.overall],
               ['完整度', result.integrity],
               ['韵律', result.rhythm.overall],
-              ['连读', result.liaison.expected > 0 ? (result.liaison.ok / result.liaison.expected) * 100 : null],
             ].map(([label, val]) => (
               <div key={label} className="flex items-center gap-2">
                 <span className="w-10 text-[10px] font-semibold text-slate-400 shrink-0">{label}</span>
@@ -390,9 +483,10 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
                 <button onClick={() => setExpandedWord(expandedWord === i ? null : i)} className={`px-1 rounded cursor-pointer ${wordColor(w.score)}`}>
                   {w.char}
                 </button>
-                {w.liaison.ref === 1 && (
-                  <span className={`ml-0.5 align-top text-[8px] font-bold px-1 rounded ${w.liaison.score === 1 ? 'text-emerald-600 bg-emerald-100' : 'text-rose-600 bg-rose-100'}`} title={w.liaison.score === 1 ? '连读到位' : '此处应连读'}>
-                    {w.liaison.score === 1 ? '连读✓' : '连读✗'}
+                {/* 诊断徽章（连读/吞音/词尾丢失），数据来自本地规则，不再用恒为 0 的 liaisonref */}
+                {diagnosisByWord[i] && (
+                  <span className={`ml-0.5 align-top text-[8px] font-bold px-1 rounded ${LEVEL_BADGE[diagnosisByWord[i].id][1]}`} title={diagnosisByWord[i].message}>
+                    {LEVEL_BADGE[diagnosisByWord[i].id][0]}
                   </span>
                 )}
                 {w.stress.ref !== w.stress.score && (
@@ -431,11 +525,11 @@ export default function ShadowingEvaluator({ refText, onPracticed, onResult }) {
 
           {/* 动态小结 + 流利度统计 */}
           <div className="text-[10px] font-medium text-slate-500 space-y-0.5">
-            {result.liaison.expected > 0 && (
-              <p className={result.liaison.ok === result.liaison.expected ? 'text-emerald-600' : 'text-amber-600'}>
-                连读 {result.liaison.ok}/{result.liaison.expected} 处到位{result.liaison.ok < result.liaison.expected ? '，注意标 ✗ 的词要连起来读' : ''}
-              </p>
-            )}
+            <p className={diagnosis.stats.problematic === 0 ? 'text-emerald-600' : 'text-amber-600'}>
+              {diagnosis.stats.problematic === 0
+                ? '未发现连读/吞音问题'
+                : `可判定连读边界 ${diagnosis.stats.boundaries} 处 · ${diagnosis.stats.problematic} 处待改进`}
+            </p>
             {result.fluency.pause != null && (
               <p>本句停顿 {result.fluency.pause} 次{result.fluency.speed != null ? `，语速${SPEED_LABEL[result.fluency.speed] || ''}` : ''}</p>
             )}
